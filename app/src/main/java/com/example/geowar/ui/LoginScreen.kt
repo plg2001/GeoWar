@@ -6,9 +6,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -16,8 +14,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CutCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -30,7 +28,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.tooling.preview.Preview // Importante per la preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
@@ -136,9 +134,9 @@ fun TeamCard(
                 modifier = Modifier.size(48.dp),
                 tint = Color.White
             )
-            
+
             Spacer(modifier = Modifier.height(16.dp))
-            
+
             Text(
                 text = name,
                 style = MaterialTheme.typography.displaySmall,
@@ -155,9 +153,9 @@ fun TeamCard(
                 color = Color.White.copy(alpha = 0.9f),
                 fontWeight = FontWeight.Medium
             )
-            
+
             Spacer(modifier = Modifier.weight(1f))
-            
+
             Text(
                 text = "TAP TO JOIN >>>",
                 style = MaterialTheme.typography.labelLarge,
@@ -166,4 +164,24 @@ fun TeamCard(
             )
         }
     }
+}
+
+// ----------------------------------------------------------------
+// AGGIUNGI QUESTO ALLA FINE DEL FILE PER VEDERE LA PREVIEW
+// ----------------------------------------------------------------
+
+@Preview(
+    showBackground = true,
+    name = "Team Selection Preview",
+    device = "spec:width=411dp,height=891dp" // Simula un telefono grande
+)
+@Composable
+fun TeamSelectionScreenPreview() {
+    // Passiamo una lambda vuota {} perché in preview non ci serve navigare davvero
+    TeamSelectionScreen(
+        onTeamSelected = { teamName ->
+            // Questo print appare nei log se usi la Interactive Mode
+            println("Preview selection: $teamName")
+        }
+    )
 }

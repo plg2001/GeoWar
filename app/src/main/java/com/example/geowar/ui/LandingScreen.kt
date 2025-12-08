@@ -25,6 +25,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.tooling.preview.Preview // Import necessario
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
@@ -80,7 +81,7 @@ fun LandingScreen(onStartClick: () -> Unit) {
         )
 
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            
+
             // Logo del gioco (Uso Icona Vettoriale sicura anti-crash)
             Icon(
                 imageVector = Icons.Default.LocationOn,
@@ -88,9 +89,9 @@ fun LandingScreen(onStartClick: () -> Unit) {
                 modifier = Modifier.size(120.dp),
                 tint = Color.White
             )
-            
+
             Spacer(modifier = Modifier.height(24.dp))
-            
+
             Text(
                 text = "GEO WAR",
                 style = MaterialTheme.typography.displayLarge.copy(
@@ -99,9 +100,9 @@ fun LandingScreen(onStartClick: () -> Unit) {
                     color = Color.White
                 )
             )
-            
+
             Spacer(modifier = Modifier.height(32.dp))
-            
+
             Text(
                 text = "TAP TO START",
                 style = MaterialTheme.typography.titleMedium.copy(
@@ -111,4 +112,23 @@ fun LandingScreen(onStartClick: () -> Unit) {
             )
         }
     }
+}
+
+// -----------------------------------------------------------
+// AGGIUNGI QUESTO PER LA PREVIEW
+// -----------------------------------------------------------
+
+@Preview(
+    showBackground = true,
+    name = "Landing Screen Preview",
+    device = "id:pixel_5" // Mostra la preview con le dimensioni di un Pixel 5
+)
+@Composable
+fun LandingScreenPreview() {
+    LandingScreen(
+        onStartClick = {
+            // Simuliamo il click in preview (stampa nei log se usi Interactive Mode)
+            println("Start clicked in Preview")
+        }
+    )
 }

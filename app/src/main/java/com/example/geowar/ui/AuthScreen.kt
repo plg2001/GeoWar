@@ -1,10 +1,8 @@
 package com.example.geowar.ui
 
-import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -32,15 +30,15 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.tooling.preview.Preview
 
+// 1. Qui ho rimosso @Preview perché questa funzione richiede parametri
 @Composable
 fun AuthScreen(
     onLoginClick: () -> Unit,
@@ -54,7 +52,7 @@ fun AuthScreen(
     val darkBg = Color(0xFF0A0E17)
     val neonBlue = Color(0xFF00E5FF)
     val neonPink = Color(0xFFFF4081)
-    
+
     val activeColor = if(isLoginMode) neonBlue else neonPink
 
     Box(
@@ -75,7 +73,7 @@ fun AuthScreen(
                 fontWeight = FontWeight.Bold,
                 letterSpacing = 4.sp
             )
-            
+
             Text(
                 text = if(isLoginMode) "IDENTITY VERIFICATION" else "NEW AGENT ENLISTMENT",
                 style = MaterialTheme.typography.bodySmall,
@@ -185,5 +183,18 @@ fun CyberTextField(
         ),
         modifier = Modifier.fillMaxWidth(),
         shape = CutCornerShape(bottomStart = 16.dp, topEnd = 16.dp)
+    )
+}
+
+// 2. Questa è la funzione ESCLUSIVA per la preview
+@Preview(
+    showBackground = true,
+    name = "Cyber Interface Preview"
+)
+@Composable
+fun AuthScreenPreview() {
+    AuthScreen(
+        onLoginClick = {},
+        onRegisterClick = {}
     )
 }
