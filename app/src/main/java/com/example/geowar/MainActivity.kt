@@ -9,10 +9,12 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.ui.Modifier
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
-import com.example.geowar.ui.AuthScreen
+import com.example.geowar.ui.auth.AuthScreen
+import com.example.geowar.ui.auth.AuthViewModel
 import com.example.geowar.ui.LandingScreen
 import com.example.geowar.ui.MapScreen
 import com.example.geowar.ui.TeamSelectionScreen
@@ -22,9 +24,9 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
-        
+
         val sharedPref = getPreferences(Context.MODE_PRIVATE)
-        
+
         setContent {
             GeoWarTheme {
                 Surface(
@@ -32,10 +34,11 @@ class MainActivity : ComponentActivity() {
                     color = MaterialTheme.colorScheme.background
                 ) {
                     val navController = rememberNavController()
+                    val authViewModel: AuthViewModel = viewModel()
 
                     NavHost(navController = navController, startDestination = "landing") {
-                        
-                        // 1. Landing Screen
+
+                        // LANDING SCREEN
                         composable("landing") {
                             LandingScreen(
                                 onStartClick = {
@@ -51,15 +54,31 @@ class MainActivity : ComponentActivity() {
                             )
                         }
 
-                        // 2. Auth Screen
+                        // AUTH SCREEN (UI + chiamate API)
                         composable("auth") {
                             AuthScreen(
-                                onLoginClick = { navController.navigate("team_selection") },
-                                onRegisterClick = { navController.navigate("team_selection") }
+                                onLoginClick = { username, password ->
+                                    authViewModel.login(username, password) { success, message ->
+                                        if (success) {
+                                            navController.navigate("team_selection")
+                                        } else {
+                                            println("LOGIN ERROR: $message")
+                                        }
+                                    }
+                                },
+                                onRegisterClick = { username, password ->
+                                    authViewModel.register(username, password) { success, message ->
+                                        if (success) {
+                                            navController.navigate("team_selection")
+                                        } else {
+                                            println("REGISTER ERROR: $message")
+                                        }
+                                    }
+                                }
                             )
                         }
 
-                        // 3. Team Selection
+                        // TEAM SELECTION
                         composable("team_selection") {
                             TeamSelectionScreen(
                                 onTeamSelected = { team ->
@@ -74,7 +93,7 @@ class MainActivity : ComponentActivity() {
                             )
                         }
 
-                        // 4. Game Map
+                        // GAME MAP
                         composable("map/{team}") { backStackEntry ->
                             val team = backStackEntry.arguments?.getString("team") ?: "UNKNOWN"
                             MapScreen(team = team)

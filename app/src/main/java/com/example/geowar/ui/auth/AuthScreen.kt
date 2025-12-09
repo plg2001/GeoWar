@@ -1,4 +1,4 @@
-package com.example.geowar.ui
+package com.example.geowar.ui.auth
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -31,9 +31,11 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.tooling.preview.Preview
@@ -41,9 +43,10 @@ import androidx.compose.ui.tooling.preview.Preview
 // 1. Qui ho rimosso @Preview perché questa funzione richiede parametri
 @Composable
 fun AuthScreen(
-    onLoginClick: () -> Unit,
-    onRegisterClick: () -> Unit
-) {
+    onLoginClick: (String, String) -> Unit,
+    onRegisterClick: (String, String) -> Unit
+)
+ {
     var isLoginMode by remember { mutableStateOf(true) }
     var username by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
@@ -138,7 +141,7 @@ fun AuthScreen(
 
             // Action Button
             Button(
-                onClick = { if(isLoginMode) onLoginClick() else onRegisterClick() },
+                onClick = { if(isLoginMode) onLoginClick(username,password) else onRegisterClick(username,password) },
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(56.dp),
@@ -163,7 +166,7 @@ fun CyberTextField(
     value: String,
     onValueChange: (String) -> Unit,
     label: String,
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    icon: ImageVector,
     isPassword: Boolean = false,
     activeColor: Color
 ) {
@@ -172,7 +175,7 @@ fun CyberTextField(
         onValueChange = onValueChange,
         label = { Text(label, color = Color.Gray) },
         leadingIcon = { Icon(icon, contentDescription = null, tint = activeColor) },
-        visualTransformation = if (isPassword) PasswordVisualTransformation() else androidx.compose.ui.text.input.VisualTransformation.None,
+        visualTransformation = if (isPassword) PasswordVisualTransformation() else VisualTransformation.None,
         keyboardOptions = if (isPassword) KeyboardOptions(keyboardType = KeyboardType.Password) else KeyboardOptions.Default,
         colors = OutlinedTextFieldDefaults.colors(
             focusedBorderColor = activeColor,
@@ -194,7 +197,7 @@ fun CyberTextField(
 @Composable
 fun AuthScreenPreview() {
     AuthScreen(
-        onLoginClick = {},
-        onRegisterClick = {}
+        onLoginClick = { _, _ -> },
+        onRegisterClick = { _, _ -> }
     )
 }
