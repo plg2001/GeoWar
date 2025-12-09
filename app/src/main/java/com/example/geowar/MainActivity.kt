@@ -2,12 +2,17 @@ package com.example.geowar
 
 import android.content.Context
 import android.os.Bundle
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.compose.NavHost
@@ -24,9 +29,9 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
-
+        
         val sharedPref = getPreferences(Context.MODE_PRIVATE)
-
+        
         setContent {
             GeoWarTheme {
                 Surface(
@@ -34,11 +39,10 @@ class MainActivity : ComponentActivity() {
                     color = MaterialTheme.colorScheme.background
                 ) {
                     val navController = rememberNavController()
-                    val authViewModel: AuthViewModel = viewModel()
-
+                    
                     NavHost(navController = navController, startDestination = "landing") {
-
-                        // LANDING SCREEN
+                        
+                        // 1. Landing Screen
                         composable("landing") {
                             LandingScreen(
                                 onStartClick = {
@@ -54,31 +58,41 @@ class MainActivity : ComponentActivity() {
                             )
                         }
 
-                        // AUTH SCREEN (UI + chiamate API)
+                        // 2. Auth Screen
                         composable("auth") {
+                            val viewModel: AuthViewModel = viewModel()
+                            var isLoading by remember { mutableStateOf(false) }
+
                             AuthScreen(
-                                onLoginClick = { username, password ->
-                                    authViewModel.login(username, password) { success, message ->
+                                onLoginClick = { user, pass ->
+                                    isLoading = true
+                                    viewModel.login(user, pass) { success, msg ->
+                                        isLoading = false
                                         if (success) {
+                                            Toast.makeText(this@MainActivity, msg, Toast.LENGTH_SHORT).show()
                                             navController.navigate("team_selection")
                                         } else {
-                                            println("LOGIN ERROR: $message")
+                                            Toast.makeText(this@MainActivity, msg, Toast.LENGTH_LONG).show()
                                         }
                                     }
                                 },
-                                onRegisterClick = { username, password ->
-                                    authViewModel.register(username, password) { success, message ->
+                                onRegisterClick = { user, pass ->
+                                    isLoading = true
+                                    viewModel.register(user, pass) { success, msg ->
+                                        isLoading = false
                                         if (success) {
+                                            Toast.makeText(this@MainActivity, msg, Toast.LENGTH_SHORT).show()
                                             navController.navigate("team_selection")
                                         } else {
-                                            println("REGISTER ERROR: $message")
+                                            Toast.makeText(this@MainActivity, msg, Toast.LENGTH_LONG).show()
                                         }
                                     }
-                                }
+                                },
+                                isLoading = isLoading
                             )
                         }
 
-                        // TEAM SELECTION
+                        // 3. Team Selection
                         composable("team_selection") {
                             TeamSelectionScreen(
                                 onTeamSelected = { team ->
@@ -93,7 +107,7 @@ class MainActivity : ComponentActivity() {
                             )
                         }
 
-                        // GAME MAP
+                        // 4. Game Map
                         composable("map/{team}") { backStackEntry ->
                             val team = backStackEntry.arguments?.getString("team") ?: "UNKNOWN"
                             MapScreen(team = team)

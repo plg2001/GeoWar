@@ -18,6 +18,7 @@ import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -38,24 +39,21 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.tooling.preview.Preview
 
-// 1. Qui ho rimosso @Preview perché questa funzione richiede parametri
 @Composable
 fun AuthScreen(
     onLoginClick: (String, String) -> Unit,
-    onRegisterClick: (String, String) -> Unit
-)
- {
+    onRegisterClick: (String, String) -> Unit,
+    isLoading: Boolean = false // Aggiunto stato di caricamento
+) {
     var isLoginMode by remember { mutableStateOf(true) }
     var username by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
 
-    // Colori tema Cyber
     val darkBg = Color(0xFF0A0E17)
     val neonBlue = Color(0xFF00E5FF)
     val neonPink = Color(0xFFFF4081)
-
+    
     val activeColor = if(isLoginMode) neonBlue else neonPink
 
     Box(
@@ -68,7 +66,6 @@ fun AuthScreen(
             modifier = Modifier.align(Alignment.Center),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // Header
             Text(
                 text = "ACCESS TERMINAL",
                 style = MaterialTheme.typography.headlineMedium,
@@ -76,7 +73,7 @@ fun AuthScreen(
                 fontWeight = FontWeight.Bold,
                 letterSpacing = 4.sp
             )
-
+            
             Text(
                 text = if(isLoginMode) "IDENTITY VERIFICATION" else "NEW AGENT ENLISTMENT",
                 style = MaterialTheme.typography.bodySmall,
@@ -86,7 +83,7 @@ fun AuthScreen(
 
             Spacer(modifier = Modifier.height(48.dp))
 
-            // Toggle Tabs
+            // Toggle
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -94,9 +91,7 @@ fun AuthScreen(
                     .border(1.dp, Color.Gray.copy(alpha = 0.5f), CutCornerShape(10.dp))
             ) {
                 Box(
-                    modifier = Modifier
-                        .weight(1f)
-                        .fillMaxSize()
+                    modifier = Modifier.weight(1f).fillMaxSize()
                         .background(if (isLoginMode) activeColor.copy(alpha = 0.2f) else Color.Transparent)
                         .clickable { isLoginMode = true },
                     contentAlignment = Alignment.Center
@@ -104,9 +99,7 @@ fun AuthScreen(
                     Text("LOGIN", color = if(isLoginMode) activeColor else Color.Gray)
                 }
                 Box(
-                    modifier = Modifier
-                        .weight(1f)
-                        .fillMaxSize()
+                    modifier = Modifier.weight(1f).fillMaxSize()
                         .background(if (!isLoginMode) activeColor.copy(alpha = 0.2f) else Color.Transparent)
                         .clickable { isLoginMode = false },
                     contentAlignment = Alignment.Center
@@ -117,11 +110,10 @@ fun AuthScreen(
 
             Spacer(modifier = Modifier.height(32.dp))
 
-            // Inputs
             CyberTextField(
                 value = username,
                 onValueChange = { username = it },
-                label = "CODENAME / USERNAME",
+                label = "CODENAME",
                 icon = Icons.Default.Person,
                 activeColor = activeColor
             )
@@ -139,23 +131,25 @@ fun AuthScreen(
 
             Spacer(modifier = Modifier.height(48.dp))
 
-            // Action Button
-            Button(
-                onClick = { if(isLoginMode) onLoginClick(username,password) else onRegisterClick(username,password) },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(56.dp),
-                shape = CutCornerShape(topStart = 16.dp, bottomEnd = 16.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = activeColor
-                )
-            ) {
-                Text(
-                    text = if(isLoginMode) "INITIALIZE LINK" else "CREATE PROFILE",
-                    color = Color.Black,
-                    fontWeight = FontWeight.Bold,
-                    letterSpacing = 2.sp
-                )
+            if (isLoading) {
+                CircularProgressIndicator(color = activeColor)
+            } else {
+                Button(
+                    onClick = { 
+                        if (isLoginMode) onLoginClick(username, password) 
+                        else onRegisterClick(username, password) 
+                    },
+                    modifier = Modifier.fillMaxWidth().height(56.dp),
+                    shape = CutCornerShape(topStart = 16.dp, bottomEnd = 16.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = activeColor)
+                ) {
+                    Text(
+                        text = if(isLoginMode) "INITIALIZE LINK" else "CREATE PROFILE",
+                        color = Color.Black,
+                        fontWeight = FontWeight.Bold,
+                        letterSpacing = 2.sp
+                    )
+                }
             }
         }
     }
@@ -186,18 +180,5 @@ fun CyberTextField(
         ),
         modifier = Modifier.fillMaxWidth(),
         shape = CutCornerShape(bottomStart = 16.dp, topEnd = 16.dp)
-    )
-}
-
-// 2. Questa è la funzione ESCLUSIVA per la preview
-@Preview(
-    showBackground = true,
-    name = "Cyber Interface Preview"
-)
-@Composable
-fun AuthScreenPreview() {
-    AuthScreen(
-        onLoginClick = { _, _ -> },
-        onRegisterClick = { _, _ -> }
     )
 }
