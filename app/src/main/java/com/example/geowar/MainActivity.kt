@@ -39,6 +39,10 @@ class MainActivity : ComponentActivity() {
                     color = MaterialTheme.colorScheme.background
                 ) {
                     val navController = rememberNavController()
+                    val viewModel: AuthViewModel = viewModel()
+                    
+                    // Stato per tracciare l'ID utente dopo il login/registrazione
+                    var currentUserId by remember { mutableStateOf<Int?>(null) }
                     
                     NavHost(navController = navController, startDestination = "landing") {
                         
@@ -47,7 +51,10 @@ class MainActivity : ComponentActivity() {
                             LandingScreen(
                                 onStartClick = {
                                     val savedTeam = sharedPref.getString("TEAM", null)
-                                    if (savedTeam != null) {
+                                    val savedUserId = sharedPref.getInt("USER_ID", -1)
+                                    
+                                    if (savedTeam != null && savedUserId != -1) {
+                                        currentUserId = savedUserId
                                         navController.navigate("map/$savedTeam") {
                                             popUpTo("landing") { inclusive = true }
                                         }
@@ -60,28 +67,35 @@ class MainActivity : ComponentActivity() {
 
                         // 2. Auth Screen
                         composable("auth") {
-                            val viewModel: AuthViewModel = viewModel()
                             var isLoading by remember { mutableStateOf(false) }
 
                             AuthScreen(
                                 onLoginClick = { user, pass ->
                                     isLoading = true
-                                    viewModel.login(user, pass) { success, msg ->
+                                    viewModel.login(user, pass) { userResponse, msg ->
                                         isLoading = false
-                                        if (success) {
-                                            Toast.makeText(this@MainActivity, msg, Toast.LENGTH_SHORT).show()
+                                        if (userResponse != null) {
+                                            currentUserId = userResponse.id
+                                            // Salviamo ID nelle preferenze
+                                            sharedPref.edit().putInt("USER_ID", userResponse.id).apply()
+                                            
+                                            Toast.makeText(this@MainActivity, "Benvenuto ${userResponse.username}", Toast.LENGTH_SHORT).show()
                                             navController.navigate("team_selection")
                                         } else {
                                             Toast.makeText(this@MainActivity, msg, Toast.LENGTH_LONG).show()
                                         }
                                     }
                                 },
-                                onRegisterClick = { user, pass ->
+                                onRegisterClick = { user, pass, email ->
                                     isLoading = true
-                                    viewModel.register(user, pass) { success, msg ->
+                                    viewModel.register(user, pass, email) { userResponse, msg ->
                                         isLoading = false
-                                        if (success) {
-                                            Toast.makeText(this@MainActivity, msg, Toast.LENGTH_SHORT).show()
+                                        if (userResponse != null) {
+                                            currentUserId = userResponse.id
+                                            // Salviamo ID nelle preferenze
+                                            sharedPref.edit().putInt("USER_ID", userResponse.id).apply()
+                                            
+                                            Toast.makeText(this@MainActivity, "Account creato!", Toast.LENGTH_SHORT).show()
                                             navController.navigate("team_selection")
                                         } else {
                                             Toast.makeText(this@MainActivity, msg, Toast.LENGTH_LONG).show()
@@ -96,13 +110,29 @@ class MainActivity : ComponentActivity() {
                         composable("team_selection") {
                             TeamSelectionScreen(
                                 onTeamSelected = { team ->
+                                    // 1. Salva localmente
                                     with(sharedPref.edit()) {
                                         putString("TEAM", team)
                                         apply()
                                     }
+                                    
+                                    // 2. Salva sul Server (Se abbiamo un ID utente)
+                                    if (currentUserId != null) {
+                                        viewModel.setTeam(currentUserId!!, team) { success, msg ->
+                                            if (!success) {
+                                                // Log o Toast errore (opzionale, per ora procediamo comunque)
+                                                // Toast.makeText(this@MainActivity, "Warning: Team not synced", Toast.LENGTH_SHORT).show()
+                                            }
+                                        }
+                                    }
+
+                                    // 3. Naviga
                                     navController.navigate("map/$team") {
                                         popUpTo("landing") { inclusive = true }
                                     }
+                                },
+                                onBackClick = {
+                                    navController.popBackStack()
                                 }
                             )
                         }

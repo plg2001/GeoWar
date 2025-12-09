@@ -16,6 +16,7 @@ db = SQLAlchemy(app)
 class User(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(80), unique=True, nullable=False)
+    email = db.Column(db.String(120), unique=True, nullable=False) # NUOVO CAMPO
     password = db.Column(db.String(120), nullable=False)
     team = db.Column(db.String(10), default=None)
     score = db.Column(db.Integer, default=0)
@@ -43,20 +44,24 @@ def home():
 @app.route('/register', methods=['POST'])
 def register():
     data = request.json
-    if not data or 'username' not in data or 'password' not in data:
-        return jsonify({"message": "Dati mancanti"}), 400
+    # Controllo campi obbligatori
+    if not data or 'username' not in data or 'password' not in data or 'email' not in data:
+        return jsonify({"message": "Dati mancanti (username, password, email)"}), 400
 
     if User.query.filter_by(username=data['username']).first():
         return jsonify({"message": "Username gia esistente"}), 400
     
+    if User.query.filter_by(email=data['email']).first():
+        return jsonify({"message": "Email gia registrata"}), 400
+    
     new_user = User(
         username=data['username'],
+        email=data['email'],
         password=data['password'] # In produzione usare hashing!
     )
     db.session.add(new_user)
     db.session.commit()
     
-    # Risposta formattata come da AuthModel.kt Android
     return jsonify({
         "message": "Registrazione completata",
         "user": {
@@ -77,7 +82,7 @@ def login():
                 "id": user.id,
                 "username": user.username
             },
-            "token": "fake-jwt-token-12345" # Token finto per ora
+            "token": "fake-jwt-token-12345" 
         }), 200
         
     return jsonify({"message": "Credenziali errate"}), 401

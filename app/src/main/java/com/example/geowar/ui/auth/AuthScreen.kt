@@ -11,12 +11,15 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CutCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Person
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -26,7 +29,6 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -42,17 +44,23 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import kotlinx.coroutines.delay
 
 @Composable
 fun AuthScreen(
     onLoginClick: (String, String) -> Unit,
-    onRegisterClick: (String, String) -> Unit,
-    isLoading: Boolean = false // Aggiunto stato di caricamento
+    onRegisterClick: (String, String, String) -> Unit, // Username, Password, Email
+    isLoading: Boolean = false
 ) {
     var isLoginMode by remember { mutableStateOf(true) }
+    
+    // Campi
     var username by remember { mutableStateOf("") }
+    var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
+    var confirmPassword by remember { mutableStateOf("") }
+    
+    // Errori
+    var errorMessage by remember { mutableStateOf<String?>(null) }
 
     val darkBg = Color(0xFF0A0E17)
     val neonBlue = Color(0xFF00E5FF)
@@ -67,7 +75,9 @@ fun AuthScreen(
             .padding(24.dp)
     ) {
         Column(
-            modifier = Modifier.align(Alignment.Center),
+            modifier = Modifier
+                .align(Alignment.Center)
+                .verticalScroll(rememberScrollState()), // Aggiunto scroll per schermi piccoli
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Text(
@@ -85,7 +95,7 @@ fun AuthScreen(
                 letterSpacing = 2.sp
             )
 
-            Spacer(modifier = Modifier.height(48.dp))
+            Spacer(modifier = Modifier.height(32.dp))
 
             // Toggle
             Row(
@@ -97,7 +107,10 @@ fun AuthScreen(
                 Box(
                     modifier = Modifier.weight(1f).fillMaxSize()
                         .background(if (isLoginMode) activeColor.copy(alpha = 0.2f) else Color.Transparent)
-                        .clickable { isLoginMode = true },
+                        .clickable { 
+                            isLoginMode = true 
+                            errorMessage = null
+                        },
                     contentAlignment = Alignment.Center
                 ) {
                     Text("LOGIN", color = if(isLoginMode) activeColor else Color.Gray)
@@ -105,7 +118,10 @@ fun AuthScreen(
                 Box(
                     modifier = Modifier.weight(1f).fillMaxSize()
                         .background(if (!isLoginMode) activeColor.copy(alpha = 0.2f) else Color.Transparent)
-                        .clickable { isLoginMode = false },
+                        .clickable { 
+                            isLoginMode = false 
+                            errorMessage = null
+                        },
                     contentAlignment = Alignment.Center
                 ) {
                     Text("REGISTER", color = if(!isLoginMode) activeColor else Color.Gray)
@@ -114,6 +130,7 @@ fun AuthScreen(
 
             Spacer(modifier = Modifier.height(32.dp))
 
+            // USERNAME (Always visible)
             CyberTextField(
                 value = username,
                 onValueChange = { username = it },
@@ -122,10 +139,22 @@ fun AuthScreen(
                 activeColor = activeColor
             )
 
-            
-
             Spacer(modifier = Modifier.height(16.dp))
 
+            // EMAIL (Only Register)
+            if (!isLoginMode) {
+                CyberTextField(
+                    value = email,
+                    onValueChange = { email = it },
+                    label = "SECURE EMAIL",
+                    icon = Icons.Default.Email,
+                    activeColor = activeColor,
+                    keyboardType = KeyboardType.Email
+                )
+                Spacer(modifier = Modifier.height(16.dp))
+            }
+
+            // PASSWORD
             CyberTextField(
                 value = password,
                 onValueChange = { password = it },
@@ -135,6 +164,25 @@ fun AuthScreen(
                 activeColor = activeColor
             )
 
+            // CONFIRM PASSWORD (Only Register)
+            if (!isLoginMode) {
+                Spacer(modifier = Modifier.height(16.dp))
+                CyberTextField(
+                    value = confirmPassword,
+                    onValueChange = { confirmPassword = it },
+                    label = "CONFIRM PASSCODE",
+                    icon = Icons.Default.Check,
+                    isPassword = true,
+                    activeColor = activeColor
+                )
+            }
+            
+            // Error Message Display
+            if (errorMessage != null) {
+                Spacer(modifier = Modifier.height(16.dp))
+                Text(text = errorMessage!!, color = Color.Red)
+            }
+
             Spacer(modifier = Modifier.height(48.dp))
 
             if (isLoading) {
@@ -142,8 +190,23 @@ fun AuthScreen(
             } else {
                 Button(
                     onClick = { 
-                        if (isLoginMode) onLoginClick(username, password) 
-                        else onRegisterClick(username, password) 
+                        errorMessage = null
+                        if (isLoginMode) {
+                            if(username.isNotEmpty() && password.isNotEmpty()) {
+                                onLoginClick(username, password)
+                            } else {
+                                errorMessage = "Fill all fields"
+                            }
+                        } else {
+                            // Register Validation
+                            if (username.isEmpty() || password.isEmpty() || email.isEmpty() || confirmPassword.isEmpty()) {
+                                errorMessage = "All fields required"
+                            } else if (password != confirmPassword) {
+                                errorMessage = "Passwords do not match"
+                            } else {
+                                onRegisterClick(username, password, email)
+                            }
+                        }
                     },
                     modifier = Modifier.fillMaxWidth().height(56.dp),
                     shape = CutCornerShape(topStart = 16.dp, bottomEnd = 16.dp),
@@ -168,7 +231,8 @@ fun CyberTextField(
     label: String,
     icon: ImageVector,
     isPassword: Boolean = false,
-    activeColor: Color
+    activeColor: Color,
+    keyboardType: KeyboardType = KeyboardType.Text
 ) {
     OutlinedTextField(
         value = value,
@@ -176,7 +240,7 @@ fun CyberTextField(
         label = { Text(label, color = Color.Gray) },
         leadingIcon = { Icon(icon, contentDescription = null, tint = activeColor) },
         visualTransformation = if (isPassword) PasswordVisualTransformation() else VisualTransformation.None,
-        keyboardOptions = if (isPassword) KeyboardOptions(keyboardType = KeyboardType.Password) else KeyboardOptions.Default,
+        keyboardOptions = if (isPassword) KeyboardOptions(keyboardType = KeyboardType.Password) else KeyboardOptions(keyboardType = keyboardType),
         colors = OutlinedTextFieldDefaults.colors(
             focusedBorderColor = activeColor,
             unfocusedBorderColor = Color.Gray,
@@ -187,47 +251,4 @@ fun CyberTextField(
         modifier = Modifier.fillMaxWidth(),
         shape = CutCornerShape(bottomStart = 16.dp, topEnd = 16.dp)
     )
-}
-
-@Preview(showBackground = true, name = "Auth Screen Preview")
-@Composable
-fun AuthScreenPreview() {
-    var showDialog by remember { mutableStateOf(false) }
-    var dialogMessage by remember { mutableStateOf("") }
-    var isLoading by remember { mutableStateOf(false) }
-
-    // When in loading state, simulate a delay and then show the result.
-    if (isLoading) {
-        LaunchedEffect(Unit) {
-            delay(2000) // Simulate a 2-second network call
-            isLoading = false
-            showDialog = true
-        }
-    }
-    
-    AuthScreen(
-        onLoginClick = { user, pass ->
-            dialogMessage = "Login with: $user / $pass"
-            isLoading = true
-        },
-        onRegisterClick = { user, pass ->
-            dialogMessage = "Register with: $user / $pass"
-            isLoading = true
-        },
-        isLoading = isLoading
-    )
-
-    // Show dialog only after loading is complete.
-    if (showDialog && !isLoading) {
-        AlertDialog(
-            onDismissRequest = { showDialog = false },
-            title = { Text("Authentication Action") },
-            text = { Text(dialogMessage) },
-            confirmButton = {
-                Button(onClick = { showDialog = false }) {
-                    Text("OK")
-                }
-            }
-        )
-    }
 }
