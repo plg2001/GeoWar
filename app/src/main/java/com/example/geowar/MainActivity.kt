@@ -1,6 +1,10 @@
 package com.example.geowar
 
 import android.content.Context
+
+import android.app.AlertDialog     // <--- Nota: android.app, non androidx.appcompat
+import android.content.DialogInterface
+import android.util.Log
 import android.os.Bundle
 import android.widget.Toast
 import androidx.activity.ComponentActivity
@@ -16,6 +20,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.credentials.Credential
 import androidx.credentials.CredentialManager
+import androidx.credentials.CustomCredential
 import androidx.credentials.GetCredentialRequest
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -31,7 +36,7 @@ import com.example.geowar.ui.theme.GeoWarTheme
 import com.google.android.libraries.identity.googleid.GetSignInWithGoogleOption
 import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
 import kotlinx.coroutines.launch
-
+import androidx.core.content.edit
 
 
 class MainActivity : ComponentActivity() {
@@ -96,7 +101,7 @@ class MainActivity : ComponentActivity() {
                                         isLoading = false
                                         if (userResponse != null) {
                                             currentUserId = userResponse.id
-                                            sharedPref.edit().putInt("USER_ID", userResponse.id).apply()
+                                            sharedPref.edit { putInt("USER_ID", userResponse.id) }
 
                                             Toast.makeText(
                                                 this@MainActivity,
@@ -116,7 +121,7 @@ class MainActivity : ComponentActivity() {
                                         isLoading = false
                                         if (userResponse != null) {
                                             currentUserId = userResponse.id
-                                            sharedPref.edit().putInt("USER_ID", userResponse.id).apply()
+                                            sharedPref.edit { putInt("USER_ID", userResponse.id) }
 
                                             Toast.makeText(
                                                 this@MainActivity,
@@ -143,7 +148,7 @@ class MainActivity : ComponentActivity() {
                         composable("team_selection") {
                             TeamSelectionScreen(
                                 onTeamSelected = { team ->
-                                    sharedPref.edit().putString("TEAM", team).apply()
+                                    sharedPref.edit { putString("TEAM", team) }
 
                                     if (currentUserId != null) {
                                         viewModel.setTeam(currentUserId!!, team) { _, _ -> }
@@ -181,7 +186,7 @@ class MainActivity : ComponentActivity() {
 
     private fun buildSignInRequest(): GetCredentialRequest {
         val googleIdOption = GetSignInWithGoogleOption.Builder(
-            serverClientId = "143510152058-sq83ea4aebkcogptq8qnv6ea3jbn23rk.apps.googleusercontent.com"
+            serverClientId = "143510152058-65kf5bucon42l77e7qk1bsgl70qki9so.apps.googleusercontent.com"
         ).build()
 
         return GetCredentialRequest.Builder()
@@ -203,7 +208,7 @@ class MainActivity : ComponentActivity() {
 
             } catch (e: Exception) {
                 e.printStackTrace()
-                Toast.makeText(this@MainActivity, "Errore login Google", Toast.LENGTH_SHORT).show()
+                Log.d("Exeception",e.toString())
             }
         }
     }
@@ -211,13 +216,33 @@ class MainActivity : ComponentActivity() {
     private fun handleGoogleCredential(credential: Credential) {
         when (credential) {
             is GoogleIdTokenCredential -> {
-                val name = credential.displayName
-                val email = credential.id
-                val idToken = credential.idToken
+                val googleIdToken = credential.idToken
+                Log.d("GOOGLE_SIGN_IN", "Got Google ID token: $googleIdToken")
 
-                Toast.makeText(this, "Ciao $name!", Toast.LENGTH_SHORT).show()
+                // Ora puoi inviare questo token al tuo backend per la verifica e l'autenticazione.
+                // Ad esempio, potresti voler chiamare una funzione nel tuo ViewModel:
+                // viewModel.signInWithGoogleToken(googleIdToken) { ... }
+            }
+            is CustomCredential -> {
+                if (credential.type == GoogleIdTokenCredential.TYPE_GOOGLE_ID_TOKEN_CREDENTIAL) {
+                    try {
+                        val googleIdTokenCredential = GoogleIdTokenCredential.createFrom(credential.data)
+                        val googleIdToken = googleIdTokenCredential.idToken
+                        Log.d("GOOGLE_SIGN_IN", "Got Google ID token from CustomCredential: $googleIdToken")
 
-                // Qui puoi collegare il login Google al tuo backend se vuoi
+                        // Ora puoi inviare questo token al tuo backend per la verifica e l'autenticazione.
+                        // Ad esempio, potresti voler chiamare una funzione nel tuo ViewModel:
+                        //viewModel.signInWithGoogleToken(googleIdToken) { ... }
+
+                    } catch (e: com.google.android.libraries.identity.googleid.GoogleIdTokenParsingException) {
+                        Log.e("GOOGLE_SIGN_IN", "Received an invalid Google ID token response", e)
+                    }
+                } else {
+                    Log.e("GOOGLE_SIGN_IN", "Unexpected CustomCredential type: ${'$'}{credential.type}")
+                }
+            }
+            else -> {
+                Log.e("GOOGLE_SIGN_IN", "Unexpected credential type: ${'$'}{credential::class.java.name}")
             }
         }
     }

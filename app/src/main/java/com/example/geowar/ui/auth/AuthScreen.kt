@@ -31,7 +31,7 @@ import androidx.compose.ui.unit.sp
 fun AuthScreen(
     onLoginClick: (String, String) -> Unit,
     onRegisterClick: (String, String, String) -> Unit,
-    onGoogleClick: () -> Unit,          // <-- ORA È AL POSTO GIUSTO
+    onGoogleClick: () -> Unit,
     isLoading: Boolean = false
 ) {
 
