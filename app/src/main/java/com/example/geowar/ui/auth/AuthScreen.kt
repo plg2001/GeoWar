@@ -3,14 +3,7 @@ package com.example.geowar.ui.auth
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CutCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
@@ -20,21 +13,8 @@ import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Person
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.OutlinedTextFieldDefaults
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -46,30 +26,29 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import kotlinx.coroutines.delay
 
 @Composable
 fun AuthScreen(
     onLoginClick: (String, String) -> Unit,
-    onRegisterClick: (String, String, String) -> Unit, // Username, Password, Email
+    onRegisterClick: (String, String, String) -> Unit,
+    onGoogleClick: () -> Unit,          // <-- ORA È AL POSTO GIUSTO
     isLoading: Boolean = false
 ) {
+
     var isLoginMode by remember { mutableStateOf(true) }
-    
-    // Campi
+
     var username by remember { mutableStateOf("") }
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var confirmPassword by remember { mutableStateOf("") }
-    
-    // Errori
+
     var errorMessage by remember { mutableStateOf<String?>(null) }
 
     val darkBg = Color(0xFF0A0E17)
     val neonBlue = Color(0xFF00E5FF)
     val neonPink = Color(0xFFFF4081)
-    
-    val activeColor = if(isLoginMode) neonBlue else neonPink
+
+    val activeColor = if (isLoginMode) neonBlue else neonPink
 
     Box(
         modifier = Modifier
@@ -80,7 +59,7 @@ fun AuthScreen(
         Column(
             modifier = Modifier
                 .align(Alignment.Center)
-                .verticalScroll(rememberScrollState()), // Aggiunto scroll per schermi piccoli
+                .verticalScroll(rememberScrollState()),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Text(
@@ -90,9 +69,9 @@ fun AuthScreen(
                 fontWeight = FontWeight.Bold,
                 letterSpacing = 4.sp
             )
-            
+
             Text(
-                text = if(isLoginMode) "IDENTITY VERIFICATION" else "NEW AGENT ENLISTMENT",
+                text = if (isLoginMode) "IDENTITY VERIFICATION" else "NEW AGENT ENLISTMENT",
                 style = MaterialTheme.typography.bodySmall,
                 color = activeColor,
                 letterSpacing = 2.sp
@@ -100,7 +79,9 @@ fun AuthScreen(
 
             Spacer(modifier = Modifier.height(32.dp))
 
-            // Toggle
+            // ───────────────────────────────────────────────
+            // TOGGLE LOGIN / REGISTER
+            // ───────────────────────────────────────────────
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -110,30 +91,33 @@ fun AuthScreen(
                 Box(
                     modifier = Modifier.weight(1f).fillMaxSize()
                         .background(if (isLoginMode) activeColor.copy(alpha = 0.2f) else Color.Transparent)
-                        .clickable { 
-                            isLoginMode = true 
+                        .clickable {
+                            isLoginMode = true
                             errorMessage = null
                         },
                     contentAlignment = Alignment.Center
                 ) {
-                    Text("LOGIN", color = if(isLoginMode) activeColor else Color.Gray)
+                    Text("LOGIN", color = if (isLoginMode) activeColor else Color.Gray)
                 }
+
                 Box(
                     modifier = Modifier.weight(1f).fillMaxSize()
                         .background(if (!isLoginMode) activeColor.copy(alpha = 0.2f) else Color.Transparent)
-                        .clickable { 
-                            isLoginMode = false 
+                        .clickable {
+                            isLoginMode = false
                             errorMessage = null
                         },
                     contentAlignment = Alignment.Center
                 ) {
-                    Text("REGISTER", color = if(!isLoginMode) activeColor else Color.Gray)
+                    Text("REGISTER", color = if (!isLoginMode) activeColor else Color.Gray)
                 }
             }
 
             Spacer(modifier = Modifier.height(32.dp))
 
-            // USERNAME (Always visible)
+            // ───────────────────────────────────────────────
+            // USERNAME
+            // ───────────────────────────────────────────────
             CyberTextField(
                 value = username,
                 onValueChange = { username = it },
@@ -144,7 +128,9 @@ fun AuthScreen(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // EMAIL (Only Register)
+            // ───────────────────────────────────────────────
+            // EMAIL (REGISTER)
+            // ───────────────────────────────────────────────
             if (!isLoginMode) {
                 CyberTextField(
                     value = email,
@@ -157,7 +143,9 @@ fun AuthScreen(
                 Spacer(modifier = Modifier.height(16.dp))
             }
 
+            // ───────────────────────────────────────────────
             // PASSWORD
+            // ───────────────────────────────────────────────
             CyberTextField(
                 value = password,
                 onValueChange = { password = it },
@@ -167,7 +155,7 @@ fun AuthScreen(
                 activeColor = activeColor
             )
 
-            // CONFIRM PASSWORD (Only Register)
+            // CONFIRM PASSWORD
             if (!isLoginMode) {
                 Spacer(modifier = Modifier.height(16.dp))
                 CyberTextField(
@@ -179,8 +167,8 @@ fun AuthScreen(
                     activeColor = activeColor
                 )
             }
-            
-            // Error Message Display
+
+            // ERROR MESSAGE
             if (errorMessage != null) {
                 Spacer(modifier = Modifier.height(16.dp))
                 Text(text = errorMessage!!, color = Color.Red)
@@ -188,20 +176,21 @@ fun AuthScreen(
 
             Spacer(modifier = Modifier.height(48.dp))
 
+            // ───────────────────────────────────────────────
+            // MAIN BUTTON LOGIN / REGISTER
+            // ───────────────────────────────────────────────
             if (isLoading) {
                 CircularProgressIndicator(color = activeColor)
             } else {
+
                 Button(
-                    onClick = { 
+                    onClick = {
                         errorMessage = null
                         if (isLoginMode) {
-                            if(username.isNotEmpty() && password.isNotEmpty()) {
+                            if (username.isNotEmpty() && password.isNotEmpty()) {
                                 onLoginClick(username, password)
-                            } else {
-                                errorMessage = "Fill all fields"
-                            }
+                            } else errorMessage = "Fill all fields"
                         } else {
-                            // Register Validation
                             if (username.isEmpty() || password.isEmpty() || email.isEmpty() || confirmPassword.isEmpty()) {
                                 errorMessage = "All fields required"
                             } else if (password != confirmPassword) {
@@ -216,10 +205,27 @@ fun AuthScreen(
                     colors = ButtonDefaults.buttonColors(containerColor = activeColor)
                 ) {
                     Text(
-                        text = if(isLoginMode) "INITIALIZE LINK" else "CREATE PROFILE",
+                        text = if (isLoginMode) "INITIALIZE LINK" else "CREATE PROFILE",
                         color = Color.Black,
                         fontWeight = FontWeight.Bold,
                         letterSpacing = 2.sp
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(24.dp))
+
+                // ───────────────────────────────────────────────
+                // GOOGLE SIGN-IN BUTTON
+                // ───────────────────────────────────────────────
+                Button(
+                    onClick = { onGoogleClick() },
+                    modifier = Modifier.fillMaxWidth().height(56.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = Color.White)
+                ) {
+                    Text(
+                        text = "Continue with Google",
+                        color = Color.Black,
+                        fontWeight = FontWeight.Bold
                     )
                 }
             }
@@ -227,14 +233,19 @@ fun AuthScreen(
     }
 }
 
+
+
+// ===================================================================
+// SUPPORT TEXT FIELD
+// ===================================================================
 @Composable
 fun CyberTextField(
     value: String,
     onValueChange: (String) -> Unit,
     label: String,
     icon: ImageVector,
-    isPassword: Boolean = false,
     activeColor: Color,
+    isPassword: Boolean = false,
     keyboardType: KeyboardType = KeyboardType.Text
 ) {
     OutlinedTextField(
@@ -243,7 +254,7 @@ fun CyberTextField(
         label = { Text(label, color = Color.Gray) },
         leadingIcon = { Icon(icon, contentDescription = null, tint = activeColor) },
         visualTransformation = if (isPassword) PasswordVisualTransformation() else VisualTransformation.None,
-        keyboardOptions = if (isPassword) KeyboardOptions(keyboardType = KeyboardType.Password) else KeyboardOptions(keyboardType = keyboardType),
+        keyboardOptions = KeyboardOptions(keyboardType = if (isPassword) KeyboardType.Password else keyboardType),
         colors = OutlinedTextFieldDefaults.colors(
             focusedBorderColor = activeColor,
             unfocusedBorderColor = Color.Gray,
@@ -256,43 +267,3 @@ fun CyberTextField(
     )
 }
 
-@Preview(showBackground = true, name = "Auth Screen Preview")
-@Composable
-fun AuthScreenPreview() {
-    var showDialog by remember { mutableStateOf(false) }
-    var dialogMessage by remember { mutableStateOf("") }
-    var isLoading by remember { mutableStateOf(false) }
-
-    if (isLoading) {
-        LaunchedEffect(Unit) {
-            delay(2000)
-            isLoading = false
-            showDialog = true
-        }
-    }
-    
-    AuthScreen(
-        onLoginClick = { user, pass ->
-            dialogMessage = "Login with: $user / $pass"
-            isLoading = true
-        },
-        onRegisterClick = { username, password, email ->
-            dialogMessage = "Register with:\nUser: $username\nPass: $password\nEmail: $email"
-            isLoading = true
-        },
-        isLoading = isLoading
-    )
-
-    if (showDialog && !isLoading) {
-        AlertDialog(
-            onDismissRequest = { showDialog = false },
-            title = { Text("Authentication Action") },
-            text = { Text(dialogMessage) },
-            confirmButton = {
-                Button(onClick = { showDialog = false }) {
-                    Text("OK")
-                }
-            }
-        )
-    }
-}

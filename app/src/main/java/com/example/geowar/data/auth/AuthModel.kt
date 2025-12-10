@@ -36,3 +36,6 @@ data class GenericResponse(
     val message: String,
     val success: Boolean
 )
+
+
+
