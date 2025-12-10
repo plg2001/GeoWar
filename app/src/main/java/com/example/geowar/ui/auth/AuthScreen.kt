@@ -20,6 +20,7 @@ import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -29,6 +30,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -44,6 +46,7 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import kotlinx.coroutines.delay
 
 @Composable
 fun AuthScreen(
@@ -134,7 +137,7 @@ fun AuthScreen(
             CyberTextField(
                 value = username,
                 onValueChange = { username = it },
-                label = "CODENAME",
+                label = "USERNAME",
                 icon = Icons.Default.Person,
                 activeColor = activeColor
             )
@@ -158,7 +161,7 @@ fun AuthScreen(
             CyberTextField(
                 value = password,
                 onValueChange = { password = it },
-                label = "PASSCODE",
+                label = "PASSWORD",
                 icon = Icons.Default.Lock,
                 isPassword = true,
                 activeColor = activeColor
@@ -170,7 +173,7 @@ fun AuthScreen(
                 CyberTextField(
                     value = confirmPassword,
                     onValueChange = { confirmPassword = it },
-                    label = "CONFIRM PASSCODE",
+                    label = "CONFIRM PASSWORD",
                     icon = Icons.Default.Check,
                     isPassword = true,
                     activeColor = activeColor
@@ -251,4 +254,45 @@ fun CyberTextField(
         modifier = Modifier.fillMaxWidth(),
         shape = CutCornerShape(bottomStart = 16.dp, topEnd = 16.dp)
     )
+}
+
+@Preview(showBackground = true, name = "Auth Screen Preview")
+@Composable
+fun AuthScreenPreview() {
+    var showDialog by remember { mutableStateOf(false) }
+    var dialogMessage by remember { mutableStateOf("") }
+    var isLoading by remember { mutableStateOf(false) }
+
+    if (isLoading) {
+        LaunchedEffect(Unit) {
+            delay(2000)
+            isLoading = false
+            showDialog = true
+        }
+    }
+    
+    AuthScreen(
+        onLoginClick = { user, pass ->
+            dialogMessage = "Login with: $user / $pass"
+            isLoading = true
+        },
+        onRegisterClick = { username, password, email ->
+            dialogMessage = "Register with:\nUser: $username\nPass: $password\nEmail: $email"
+            isLoading = true
+        },
+        isLoading = isLoading
+    )
+
+    if (showDialog && !isLoading) {
+        AlertDialog(
+            onDismissRequest = { showDialog = false },
+            title = { Text("Authentication Action") },
+            text = { Text(dialogMessage) },
+            confirmButton = {
+                Button(onClick = { showDialog = false }) {
+                    Text("OK")
+                }
+            }
+        )
+    }
 }
