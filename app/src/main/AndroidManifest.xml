@@ -2,9 +2,13 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
 
-    <!-- Aggiungo permesso Internet -->
+    <!-- PERMESSI INTERNET -->
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    
+    <!-- PERMESSI GPS (Necessari per la Mappa) -->
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
 
     <application
         android:allowBackup="true"
@@ -16,6 +20,11 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.GeoWar"
         android:usesCleartextTraffic="true"> 
+        
+        <!-- CHIAVE API GOOGLE MAPS -->
+        <meta-data
+            android:name="com.google.android.geo.API_KEY"
+            android:value="AIzaSyC_1EmyneP-8qrx_ZpIto5jOBl0TZeOj8Y" />
         
         <activity
             android:name=".MainActivity"
