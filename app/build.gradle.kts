@@ -6,14 +6,12 @@ plugins {
 
 android {
     namespace = "com.example.geowar"
-    compileSdk {
-        version = release(36)
-    }
+    compileSdk = 35 // Mantengo 35 per ora, vedremo di risolvere le dipendenze
 
     defaultConfig {
         applicationId = "com.example.geowar"
         minSdk = 24
-        targetSdk = 36
+        targetSdk = 35 // Aggiorno targetSdk a 35
         versionCode = 1
         versionName = "1.0"
 
@@ -42,9 +40,13 @@ android {
 }
 
 dependencies {
-    implementation(libs.androidx.core.ktx)
-    implementation(libs.androidx.lifecycle.runtime.ktx)
-    implementation(libs.androidx.activity.compose)
+    // Forziamo versioni compatibili con API 35 (Android 15)
+    // Downgrade delle librerie che richiedono API 36 (Android 16 DP)
+    
+    implementation("androidx.core:core-ktx:1.15.0") // Downgrade da 1.17.0
+    implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.8.7") // Versione stabile
+    implementation("androidx.activity:activity-compose:1.9.3") // Downgrade da 1.12.1
+    
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.compose.ui)
     implementation(libs.androidx.compose.ui.graphics)
@@ -69,9 +71,10 @@ dependencies {
     debugImplementation(libs.androidx.compose.ui.test.manifest)
 
 
-    implementation("androidx.credentials:credentials:1.6.0-beta03")
-    implementation("androidx.credentials:credentials-play-services-auth:1.6.0-beta03")
+    implementation("androidx.credentials:credentials:1.5.0-rc01") // Stabile compatibile con API 35
+    implementation("androidx.credentials:credentials-play-services-auth:1.5.0-rc01")
     implementation("com.google.android.libraries.identity.googleid:googleid:1.1.1")
+
+    // Aggiunta libreria per decodificare il token JWT
+    implementation("com.auth0.android:jwtdecode:2.0.2")
 }
-
-

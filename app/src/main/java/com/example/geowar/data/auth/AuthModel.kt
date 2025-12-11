@@ -11,6 +11,12 @@ data class RegisterRequest(
     val email: String
 )
 
+data class GoogleLoginRequest(
+    val token: String,
+    val email: String,
+    val name: String
+)
+
 data class SetTeamRequest(
     val user_id: Int,
     val team: String
@@ -18,7 +24,10 @@ data class SetTeamRequest(
 
 data class UserResponse(
     val id: Int,
-    val username: String
+    val username: String,
+    val admin: Boolean = false, // NUOVO: Flag amministratore
+    val team: String? = null,
+    val score: Int = 0
 )
 
 data class LoginResponse(
@@ -37,5 +46,26 @@ data class GenericResponse(
     val success: Boolean
 )
 
+// NUOVI MODELLI PER L'ADMIN
+data class AdminUserListResponse(
+    val users: List<UserResponse>
+)
 
+data class BanUserRequest(
+    val user_id: Int
+)
 
+data class CreateTargetRequest(
+    val name: String,
+    val lat: Double,
+    val lon: Double,
+    val owner_team: String = "NEUTRAL"
+)
+
+data class TargetResponse(
+    val id: Int,
+    val name: String,
+    val lat: Double,
+    val lon: Double,
+    val owner: String
+)
