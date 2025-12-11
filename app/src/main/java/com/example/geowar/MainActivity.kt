@@ -47,6 +47,7 @@ class MainActivity : ComponentActivity() {
     private val credentialManager by lazy {
         CredentialManager.create(this)
     }
+    private lateinit var viewModel: AuthViewModel
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -61,7 +62,7 @@ class MainActivity : ComponentActivity() {
                     color = MaterialTheme.colorScheme.background
                 ) {
                     val navController = rememberNavController()
-                    val viewModel: AuthViewModel = viewModel()
+                    viewModel = viewModel() // Inizializza il viewModel qui
 
                     var currentUserId by remember { mutableStateOf<Int?>(null) }
 
@@ -105,7 +106,7 @@ class MainActivity : ComponentActivity() {
 
                                             Toast.makeText(
                                                 this@MainActivity,
-                                                "Benvenuto ${userResponse.username}",
+                                                "Benvenuto ${'$'}{userResponse.username}",
                                                 Toast.LENGTH_SHORT
                                             ).show()
 
@@ -136,7 +137,20 @@ class MainActivity : ComponentActivity() {
                                     }
                                 },
                                 onGoogleClick = {        // <<<<<< AGGIUNTO: login con Google
-                                    signInWithGoogle()
+                                    signInWithGoogle { userResponse, msg ->
+                                        if (userResponse != null) {
+                                            currentUserId = userResponse.id
+                                            sharedPref.edit { putInt("USER_ID", userResponse.id) }
+                                            Toast.makeText(
+                                                this@MainActivity,
+                                                "Benvenuto ${'$'}{userResponse.username}",
+                                                Toast.LENGTH_SHORT
+                                            ).show()
+                                            navController.navigate("team_selection")
+                                        } else {
+                                            Toast.makeText(this@MainActivity, msg, Toast.LENGTH_LONG).show()
+                                        }
+                                    }
                                 },
                                 isLoading = isLoading
                             )
@@ -151,7 +165,7 @@ class MainActivity : ComponentActivity() {
                                     sharedPref.edit { putString("TEAM", team) }
 
                                     if (currentUserId != null) {
-                                        viewModel.setTeam(currentUserId!!, team) { _, _ -> }
+                                        viewModel.setTeam(currentUserId!!, team) { _, _ -> } // DA CAMBIARE
                                     }
 
                                     navController.navigate("map/$team") {
@@ -194,7 +208,7 @@ class MainActivity : ComponentActivity() {
             .build()
     }
 
-    fun signInWithGoogle() {
+    private fun signInWithGoogle(onResult: (com.example.geowar.data.auth.UserResponse?, String) -> Unit) {
         val request = buildSignInRequest()
 
         lifecycleScope.launch {
@@ -204,46 +218,52 @@ class MainActivity : ComponentActivity() {
                     request = request
                 )
 
-                handleGoogleCredential(result.credential)
+                handleGoogleCredential(result.credential, onResult)
 
             } catch (e: Exception) {
                 e.printStackTrace()
-                Log.d("Exeception",e.toString())
+                Log.e("GOOGLE_SIGN_IN", "Sign-in failed", e)
+                onResult(null, "Login con Google cancellato o fallito.")
             }
         }
     }
 
-    private fun handleGoogleCredential(credential: Credential) {
+    private fun handleGoogleCredential(credential: Credential, onResult: (com.example.geowar.data.auth.UserResponse?, String) -> Unit) {
+        var googleIdToken: String? = null
+
         when (credential) {
             is GoogleIdTokenCredential -> {
-                val googleIdToken = credential.idToken
-                Log.d("GOOGLE_SIGN_IN", "Got Google ID token: $googleIdToken")
-
-                // Ora puoi inviare questo token al tuo backend per la verifica e l'autenticazione.
-                // Ad esempio, potresti voler chiamare una funzione nel tuo ViewModel:
-                // viewModel.signInWithGoogleToken(googleIdToken) { ... }
+                googleIdToken = credential.idToken
             }
             is CustomCredential -> {
                 if (credential.type == GoogleIdTokenCredential.TYPE_GOOGLE_ID_TOKEN_CREDENTIAL) {
                     try {
                         val googleIdTokenCredential = GoogleIdTokenCredential.createFrom(credential.data)
-                        val googleIdToken = googleIdTokenCredential.idToken
-                        Log.d("GOOGLE_SIGN_IN", "Got Google ID token from CustomCredential: $googleIdToken")
-
-                        // Ora puoi inviare questo token al tuo backend per la verifica e l'autenticazione.
-                        // Ad esempio, potresti voler chiamare una funzione nel tuo ViewModel:
-                        //viewModel.signInWithGoogleToken(googleIdToken) { ... }
-
+                        googleIdToken = googleIdTokenCredential.idToken
                     } catch (e: com.google.android.libraries.identity.googleid.GoogleIdTokenParsingException) {
                         Log.e("GOOGLE_SIGN_IN", "Received an invalid Google ID token response", e)
+                        onResult(null, "Token Google non valido.")
+                        return
                     }
                 } else {
                     Log.e("GOOGLE_SIGN_IN", "Unexpected CustomCredential type: ${'$'}{credential.type}")
+                    onResult(null, "Tipo di credenziale non supportato.")
+                    return
                 }
             }
             else -> {
                 Log.e("GOOGLE_SIGN_IN", "Unexpected credential type: ${'$'}{credential::class.java.name}")
+                onResult(null, "Tipo di credenziale non previsto.")
+                return
             }
+        }
+
+        if (googleIdToken != null) {
+            Log.d("GOOGLE_SIGN_IN", "Got Google ID token: $googleIdToken")
+            viewModel.loginWithGoogle(googleIdToken, onResult)
+        } else {
+            // Questo caso non dovrebbe accadere se la logica sopra è corretta, ma è una sicurezza
+            onResult(null, "Impossibile ottenere il token da Google.")
         }
     }
 }
