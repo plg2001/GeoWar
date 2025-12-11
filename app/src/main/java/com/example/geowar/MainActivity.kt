@@ -188,7 +188,15 @@ class MainActivity : ComponentActivity() {
                         // -------------------------
                         composable("map/{team}") { backStackEntry ->
                             val team = backStackEntry.arguments?.getString("team") ?: "UNKNOWN"
-                            MapScreen(team = team)
+                            MapScreen(
+                                team = team,
+                                onLogout = {
+                                    sharedPref.edit { clear() }
+                                    navController.navigate("auth") {
+                                        popUpTo("landing") { inclusive = true }
+                                    }
+                                }
+                            )
                         }
 
                         // -------------------------

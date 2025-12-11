@@ -2,17 +2,27 @@ package com.example.geowar.ui
 
 import android.Manifest
 import android.annotation.SuppressLint
-import android.location.Location
 import android.os.Looper
+import android.util.Log
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable // <--- AGGIUNTO IMPORT MANCANTE
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ExitToApp
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowLeft
+import androidx.compose.material.icons.filled.KeyboardArrowRight
+import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -22,15 +32,27 @@ import com.google.android.gms.maps.model.BitmapDescriptorFactory
 import com.google.android.gms.maps.model.CameraPosition
 import com.google.android.gms.maps.model.LatLng
 import com.google.maps.android.compose.*
+import kotlinx.coroutines.delay
 
 @SuppressLint("MissingPermission")
 @Composable
-fun MapScreen(team: String) {
+fun MapScreen(
+    team: String,
+    onLogout: () -> Unit // Callback per il logout
+) {
     val context = LocalContext.current
     val fusedLocationClient = remember { LocationServices.getFusedLocationProviderClient(context) }
 
-    var userLocation by remember { mutableStateOf(LatLng(41.8902, 12.4922)) } // Default Roma
+    // Posizione iniziale
+    var userLocation by remember { mutableStateOf(LatLng(41.8902, 12.4922)) }
+    var isFirstLocationReceived by remember { mutableStateOf(false) }
     var hasPermission by remember { mutableStateOf(false) }
+    
+    // Stato per il Dialog di Logout
+    var showLogoutDialog by remember { mutableStateOf(false) }
+
+    // Step di movimento
+    val moveStep = 0.00015 
 
     val permissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission(),
@@ -44,78 +66,200 @@ fun MapScreen(team: String) {
         position = CameraPosition.fromLatLngZoom(userLocation, 17f)
     }
 
-    // 1. Chiede il permesso all'avvio
     LaunchedEffect(Unit) {
         permissionLauncher.launch(Manifest.permission.ACCESS_FINE_LOCATION)
     }
     
-    // 2. 🟢 AGGIORNAMENTO AUTOMATICO: Inizia a ricevere la posizione in tempo reale se il permesso è concesso
+    // Logica GPS (Solo avvio)
     if (hasPermission) {
         val locationRequest = remember {
-            LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, 5000L) // Ogni 5 secondi
-                .build()
+            LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, 2000L).apply {
+                setMinUpdateIntervalMillis(1000L)
+            }.build()
         }
 
         val locationCallback = remember {
             object : LocationCallback() {
                 override fun onLocationResult(locationResult: LocationResult) {
-                    locationResult.lastLocation?.let {
-                        // Aggiorna la posizione del giocatore sulla mappa
-                        userLocation = LatLng(it.latitude, it.longitude)
+                    if (!isFirstLocationReceived) {
+                        locationResult.lastLocation?.let {
+                            userLocation = LatLng(it.latitude, it.longitude)
+                            isFirstLocationReceived = true
+                        }
                     }
                 }
             }
         }
 
-        // 3. Gestisce il ciclo di vita: avvia/ferma gli aggiornamenti quando la mappa è visibile/nascosta
         DisposableEffect(fusedLocationClient) {
             fusedLocationClient.requestLocationUpdates(locationRequest, locationCallback, Looper.getMainLooper())
-
             onDispose {
                 fusedLocationClient.removeLocationUpdates(locationCallback)
             }
         }
     }
 
-    // 4. Anima la camera per seguire il giocatore
+    // Camera Follow
     LaunchedEffect(userLocation) {
         cameraPositionState.animate(CameraUpdateFactory.newLatLng(userLocation))
     }
 
-    // Colori Team
-    val teamColor = if (team == "BLUE") Color(0xFF00E5FF) else Color(0xFFFF4081)
+    // Configurazione visuale
     val markerHue = if (team == "BLUE") BitmapDescriptorFactory.HUE_AZURE else BitmapDescriptorFactory.HUE_ROSE
+    val teamColor = if (team == "BLUE") Color(0xFF00E5FF) else Color(0xFFFF4081)
 
     Box(modifier = Modifier.fillMaxSize()) {
         GoogleMap(
             modifier = Modifier.fillMaxSize(),
             cameraPositionState = cameraPositionState,
-            properties = MapProperties(isMyLocationEnabled = true), // Ora usiamo il pallino blu nativo e preciso
-            uiSettings = MapUiSettings(zoomControlsEnabled = false, myLocationButtonEnabled = true)
+            properties = MapProperties(isMyLocationEnabled = false), 
+            uiSettings = MapUiSettings(
+                zoomControlsEnabled = false,
+                myLocationButtonEnabled = false
+            )
         ) {
-            // Potremmo anche non usare un Marker custom e affidarci a quello di `isMyLocationEnabled`,
-            // ma lo teniamo per coerenza di stile se volessimo personalizzarlo.
             Marker(
                 state = MarkerState(position = userLocation),
                 title = "Tu ($team)",
-                snippet = "Posizione attuale",
                 icon = BitmapDescriptorFactory.defaultMarker(markerHue)
             )
         }
         
-        // Header info
-        Card(
+        // --- HEADER INFO & LOGOUT ---
+        Row(
             modifier = Modifier
                 .align(Alignment.TopCenter)
-                .padding(top = 48.dp), // Spazio per status bar
-            colors = CardDefaults.cardColors(containerColor = Color.Black.copy(alpha = 0.8f))
+                .padding(top = 48.dp)
+                .padding(horizontal = 16.dp),
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(
-                text = "OPERATORE: TEAM $team",
-                color = teamColor,
-                fontWeight = FontWeight.Bold,
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+            // Card Team
+            Card(
+                colors = CardDefaults.cardColors(containerColor = Color.Black.copy(alpha = 0.8f))
+            ) {
+                Text(
+                    text = "OPERATORE: TEAM $team",
+                    color = teamColor,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+                )
+            }
+            
+            Spacer(modifier = Modifier.weight(1f))
+
+            // Pulsante Logout
+            FloatingActionButton(
+                onClick = { showLogoutDialog = true },
+                containerColor = Color.Red,
+                contentColor = Color.White,
+                modifier = Modifier.size(48.dp)
+            ) {
+                Icon(imageVector = Icons.AutoMirrored.Filled.ExitToApp, contentDescription = "Logout")
+            }
+        }
+
+        // --- CONTROLLER GAMEBOY ---
+        Box(
+            modifier = Modifier
+                .align(Alignment.BottomEnd)
+                .padding(32.dp)
+                .size(180.dp)
+        ) {
+            Column(
+                modifier = Modifier.align(Alignment.Center),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                // SU
+                RepeatingDpadButton(Icons.Default.KeyboardArrowUp) {
+                    userLocation = LatLng(userLocation.latitude + moveStep, userLocation.longitude)
+                }
+                
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    // SX
+                    RepeatingDpadButton(Icons.Default.KeyboardArrowLeft) {
+                        userLocation = LatLng(userLocation.latitude, userLocation.longitude - moveStep)
+                    }
+                    Spacer(modifier = Modifier.size(50.dp))
+                    // DX
+                    RepeatingDpadButton(Icons.Default.KeyboardArrowRight) {
+                        userLocation = LatLng(userLocation.latitude, userLocation.longitude + moveStep)
+                    }
+                }
+                
+                // GIU
+                RepeatingDpadButton(Icons.Default.KeyboardArrowDown) {
+                    userLocation = LatLng(userLocation.latitude - moveStep, userLocation.longitude)
+                }
+            }
+        }
+        
+        // --- DIALOG DI CONFERMA LOGOUT ---
+        if (showLogoutDialog) {
+            AlertDialog(
+                onDismissRequest = { showLogoutDialog = false },
+                title = { Text("Abbandonare la partita?") },
+                text = { Text("Sei sicuro di voler uscire e tornare al menu principale?") },
+                confirmButton = {
+                    Button(
+                        onClick = {
+                            showLogoutDialog = false
+                            onLogout()
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = Color.Red)
+                    ) {
+                        Text("Abbandona")
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showLogoutDialog = false }) {
+                        Text("Annulla")
+                    }
+                }
             )
         }
     }
 }
+
+// Composable personalizzato che ripete l'azione mentre il tasto è premuto
+@Composable
+fun RepeatingDpadButton(
+    icon: ImageVector,
+    onClick: () -> Unit
+) {
+    val interactionSource = remember { MutableInteractionSource() }
+    val isPressed by interactionSource.collectIsPressedAsState()
+
+    // Logica di ripetizione
+    LaunchedEffect(isPressed) {
+        if (isPressed) {
+            while (true) {
+                onClick()
+                delay(50) // Velocità di ripetizione (50ms = molto fluido)
+            }
+        }
+    }
+
+    Surface(
+        shape = CircleShape,
+        color = Color.DarkGray.copy(alpha = 0.8f),
+        contentColor = Color.White,
+        modifier = Modifier
+            .size(50.dp)
+            // Colleghiamo l'interazione per rilevare il "press"
+            .clickable(
+                interactionSource = interactionSource,
+                indication = null // Rimuove ripple di default se fastidioso, o usa LocalIndication.current
+            ) {}
+    ) {
+        Box(contentAlignment = Alignment.Center) {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                modifier = Modifier.size(32.dp)
+            )
+        }
+    }
+}
+
+// NOTA: Ho rimosso la funzione 'fun Modifier.clickable(...)' duplicata che causava l'errore.
+// Ora usiamo quella standard importata da androidx.compose.foundation.clickable

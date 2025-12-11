@@ -24,6 +24,9 @@ class AuthViewModel : ViewModel() {
             try {
                 val response = ApiClient.authApi.login(LoginRequest(username, password))
                 onResult(response.user, "Login ok: ${response.user.username}")
+            } catch (e: HttpException) {
+                val errorBody = e.response()?.errorBody()?.string() ?: "Errore sconosciuto"
+                onResult(null, "Errore Login: $errorBody")
             } catch (e: Exception) {
                 onResult(null, "Errore login: ${e.message}")
             }
@@ -40,6 +43,9 @@ class AuthViewModel : ViewModel() {
             try {
                 val response = ApiClient.authApi.register(RegisterRequest(username, password, email))
                 onResult(response.user, "Registrazione ok: ${response.user.username}")
+            } catch (e: HttpException) {
+                val errorBody = e.response()?.errorBody()?.string() ?: "Errore sconosciuto"
+                onResult(null, "Errore Registrazione: $errorBody")
             } catch (e: Exception) {
                 onResult(null, "Errore registrazione: ${e.message}")
             }
@@ -91,6 +97,9 @@ class AuthViewModel : ViewModel() {
             try {
                 val response = ApiClient.authApi.setTeam(SetTeamRequest(userId, team))
                 onResult(true, "Team aggiornato: $team")
+            } catch (e: HttpException) {
+                val errorBody = e.response()?.errorBody()?.string() ?: "Errore sconosciuto"
+                onResult(false, "Errore salvataggio team: $errorBody")
             } catch (e: Exception) {
                 onResult(false, "Errore salvataggio team: ${e.message}")
             }
