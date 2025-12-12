@@ -39,7 +39,11 @@ import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
 import com.google.android.libraries.identity.googleid.GoogleIdTokenParsingException
 import kotlinx.coroutines.launch
 import androidx.core.content.edit
+import com.example.geowar.ui.AccountScreen
 import java.util.UUID
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
 
 
 class MainActivity : ComponentActivity() {
@@ -55,6 +59,12 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
 
+        val windowInsetsController = WindowCompat.getInsetsController(window, window.decorView)
+
+
+        windowInsetsController.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+
+        windowInsetsController.hide(WindowInsetsCompat.Type.navigationBars())
         val sharedPref = getPreferences(Context.MODE_PRIVATE)
 
         setContent {
@@ -195,6 +205,9 @@ class MainActivity : ComponentActivity() {
                                     navController.navigate("auth") {
                                         popUpTo("landing") { inclusive = true }
                                     }
+                                },
+                                onAccountClick = {
+                                    navController.navigate("account")
                                 }
                             )
                         }
@@ -211,6 +224,15 @@ class MainActivity : ComponentActivity() {
                                         popUpTo("landing") { inclusive = true }
                                     }
                                 }
+                            )
+                        }
+                        
+                        // -------------------------
+                        // 6. Account Screen
+                        // -------------------------
+                        composable("account") {
+                            AccountScreen(
+                                onBackClick = { navController.popBackStack() }
                             )
                         }
                     }
