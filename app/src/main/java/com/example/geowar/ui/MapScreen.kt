@@ -31,6 +31,7 @@ import com.google.android.gms.maps.CameraUpdateFactory
 import com.google.android.gms.maps.model.BitmapDescriptorFactory
 import com.google.android.gms.maps.model.CameraPosition
 import com.google.android.gms.maps.model.LatLng
+import com.google.android.gms.maps.model.MapStyleOptions
 import com.google.maps.android.compose.*
 import kotlinx.coroutines.delay
 
@@ -41,6 +42,11 @@ fun MapScreen(
     onLogout: () -> Unit // Callback per il logout
 ) {
     val context = LocalContext.current
+    // Carica lo stile JSON dalla cartella raw
+    val mapStyleOptions = remember {
+        MapStyleOptions.loadRawResourceStyle(context, com.example.geowar.R.raw.map_style)
+    }
+
     val fusedLocationClient = remember { LocationServices.getFusedLocationProviderClient(context) }
 
     // Posizione iniziale
@@ -112,7 +118,10 @@ fun MapScreen(
         GoogleMap(
             modifier = Modifier.fillMaxSize(),
             cameraPositionState = cameraPositionState,
-            properties = MapProperties(isMyLocationEnabled = false), 
+            properties = MapProperties(
+                isMyLocationEnabled = false,
+                mapStyleOptions = mapStyleOptions // <-- APPLICA LO STILE QUI
+            ), 
             uiSettings = MapUiSettings(
                 zoomControlsEnabled = false,
                 myLocationButtonEnabled = false
@@ -260,6 +269,3 @@ fun RepeatingDpadButton(
         }
     }
 }
-
-// NOTA: Ho rimosso la funzione 'fun Modifier.clickable(...)' duplicata che causava l'errore.
-// Ora usiamo quella standard importata da androidx.compose.foundation.clickable
