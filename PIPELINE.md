@@ -24,6 +24,8 @@ Obiettivo: Vedere il mondo di gioco. Tecnologia: Android (Kotlin).
 - Implementa Google Maps SDK.
 - Chiedi permessi GPS.
 - Disegna i Marker dei target scaricati dal server: Colorali di Grigio/Rosso/Blu in base al JSON ricevuto.
+- Disegna Avatar con dicebar api 
+
 
 ## 🟠 FASE 3: Il PvE (Conquista delle Zone)
 Obiettivo: Andare sul posto e catturare obiettivi.
