@@ -16,7 +16,9 @@ class AccountViewModel(private val userRepository: UserRepository) : ViewModel()
     var email by mutableStateOf("")
         private set
 
-    // Potremmo aggiungere altri stati per gestire caricamenti, errori, etc.
+    var avatarSeed by mutableStateOf<String?>(null)
+        private set
+
     var isLoading by mutableStateOf(false)
         private set
     var errorMessage by mutableStateOf<String?>(null)
@@ -30,6 +32,7 @@ class AccountViewModel(private val userRepository: UserRepository) : ViewModel()
             result.onSuccess { userDetails ->
                 username = userDetails.username
                 email = userDetails.email
+                avatarSeed = userDetails.avatar_seed
             }.onFailure { error ->
                 errorMessage = error.message ?: "Errore sconosciuto"
             }
@@ -45,11 +48,15 @@ class AccountViewModel(private val userRepository: UserRepository) : ViewModel()
         email = newEmail
     }
 
+    fun generateNewAvatarSeed() {
+        avatarSeed = java.util.UUID.randomUUID().toString()
+    }
+
     fun saveChanges(onSuccess: () -> Unit) {
         viewModelScope.launch {
             isLoading = true
             errorMessage = null
-            val result = userRepository.updateUserDetails(username, email)
+            val result = userRepository.updateUserDetails(username, email, avatarSeed)
             result.onSuccess {
                 onSuccess()
             }.onFailure { error ->

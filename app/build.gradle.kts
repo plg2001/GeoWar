@@ -62,6 +62,9 @@ dependencies {
     // ViewModel Compose
     implementation(libs.androidx.lifecycle.viewmodel.compose)
 
+    // Coil for image loading
+    implementation("io.coil-kt:coil-compose:2.5.0")
+
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)

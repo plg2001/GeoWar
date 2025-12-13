@@ -2,7 +2,6 @@ package com.example.geowar.ui
 
 import android.widget.Toast
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Box
@@ -38,7 +37,6 @@ import androidx.compose.material3.TextFieldColors
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -52,15 +50,16 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import coil.compose.AsyncImage
 import com.example.geowar.R
-import com.example.geowar.repository.UserRepository
 import com.example.geowar.data.auth.AuthApi
+import com.example.geowar.repository.UserRepository
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AccountScreen(
     onBackClick: () -> Unit,
-    authApi: AuthApi // Supponendo che tu possa passarla o ottenerla da un service locator
+    authApi: AuthApi
 ) {
     val context = LocalContext.current
     val userRepository = UserRepository(authApi, context)
@@ -68,22 +67,20 @@ fun AccountScreen(
 
     val username = accountViewModel.username
     val email = accountViewModel.email
+    val avatarSeed = accountViewModel.avatarSeed
     val isLoading = accountViewModel.isLoading
     val errorMessage = accountViewModel.errorMessage
 
-    // Carica i dati dell'utente all'avvio
     LaunchedEffect(Unit) {
         accountViewModel.loadUserProfile()
     }
 
-    // Mostra un toast in caso di errore
     LaunchedEffect(errorMessage) {
         errorMessage?.let {
             Toast.makeText(context, it, Toast.LENGTH_LONG).show()
         }
     }
 
-    // COLORI CYBERPUNK
     val darkBg = Color(0xFF0A0E17)
     val neonBlue = Color(0xFF00E5FF)
     val neonPink = Color(0xFFFF4081)
@@ -126,7 +123,7 @@ fun AccountScreen(
                 .verticalScroll(rememberScrollState()),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            if (isLoading) {
+            if (isLoading && avatarSeed == null) { // Mostra solo al primo caricamento
                 CircularProgressIndicator(color = neonBlue)
             } else {
                 // --- SEZIONE FOTO PROFILO ---
@@ -137,14 +134,15 @@ fun AccountScreen(
                         .clip(CircleShape)
                         .border(2.dp, neonBlue, CircleShape)
                 ) {
-                    Image(
-                        painter = painterResource(id = R.drawable.ic_launcher_background),
+                    AsyncImage(
+                        model = "https://api.dicebear.com/7.x/pixel-art/png?seed=${avatarSeed ?: ""}",
                         contentDescription = "Foto Profilo",
                         modifier = Modifier.fillMaxSize(),
-                        contentScale = ContentScale.Crop
+                        contentScale = ContentScale.Crop,
+                        placeholder = painterResource(id = R.drawable.ic_launcher_background)
                     )
                     IconButton(
-                        onClick = { /* TODO: Logica per cambiare foto */ },
+                        onClick = { accountViewModel.generateNewAvatarSeed() },
                         modifier = Modifier
                             .size(40.dp)
                             .background(surfaceColor, CircleShape)
@@ -206,13 +204,18 @@ fun AccountScreen(
                         .border(1.dp, neonPink.copy(alpha = 0.5f), CutCornerShape(12.dp)),
                     contentAlignment = Alignment.Center
                 ) {
-                    Text("AVATAR", color = neonPink, fontWeight = FontWeight.Bold)
+                    AsyncImage(
+                        model = "https://api.dicebear.com/7.x/pixel-art/png?seed=${avatarSeed ?: ""}",
+                        contentDescription = "Avatar Preview",
+                        modifier = Modifier.fillMaxSize(),
+                        placeholder = painterResource(id = R.drawable.ic_launcher_background)
+                    )
                 }
 
                 Spacer(modifier = Modifier.height(16.dp))
 
                 Button(
-                    onClick = { /* TODO: Logica per generare nuovo avatar */ },
+                    onClick = { accountViewModel.generateNewAvatarSeed() },
                     shape = CutCornerShape(topStart = 8.dp, bottomEnd = 8.dp),
                     colors = ButtonDefaults.buttonColors(containerColor = neonPink),
                     border = BorderStroke(1.dp, neonPink.copy(alpha = 0.7f))
@@ -237,9 +240,13 @@ fun AccountScreen(
                     colors = ButtonDefaults.buttonColors(containerColor = neonBlue),
                     enabled = !isLoading
                 ) {
-                    Icon(Icons.Default.Save, contentDescription = null, tint = Color.Black)
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text("SALVA MODIFICHE", color = Color.Black, fontWeight = FontWeight.Bold)
+                    if (isLoading) {
+                        CircularProgressIndicator(modifier = Modifier.size(24.dp), color = Color.Black)
+                    } else {
+                        Icon(Icons.Default.Save, contentDescription = null, tint = Color.Black)
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("SALVA MODIFICHE", color = Color.Black, fontWeight = FontWeight.Bold)
+                    }
                 }
             }
         }

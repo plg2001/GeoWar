@@ -31,14 +31,15 @@ class UserRepository(private val apiService: AuthApi, private val context: Conte
         }
     }
 
-    suspend fun updateUserDetails(username: String, email: String): Result<Unit> {
+    suspend fun updateUserDetails(username: String, email: String, avatarSeed: String?): Result<Unit> {
         val userId = getUserId()
         if (userId == -1) {
             return Result.failure(Exception("ID utente non trovato"))
         }
 
         return try {
-            val response = apiService.updateUserDetails(userId, UserDetails(username = username, email = email))
+            val userDetails = UserDetails(username = username, email = email, avatar_seed = avatarSeed)
+            val response = apiService.updateUserDetails(userId, userDetails)
             if (response.isSuccessful) {
                 Result.success(Unit)
             } else {
