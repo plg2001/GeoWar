@@ -144,18 +144,23 @@ fun MapScreen(
                 ),
                 uiSettings = MapUiSettings(zoomControlsEnabled = false, myLocationButtonEnabled = false)
             ) {
-                if (avatarBitmap != null) {
-                    Marker(
-                        state = MarkerState(position = playerPosition),
-                        title = "$username",
-                        icon = BitmapDescriptorFactory.fromBitmap(avatarBitmap!!)
-                    )
-                } else {
-                    Marker(
-                        state = MarkerState(position = playerPosition),
-                        title = "$username",
-                        icon = BitmapDescriptorFactory.defaultMarker()
-                    )
+                val markerState = remember { MarkerState(position = playerPosition) }
+                markerState.position = playerPosition
+
+                Marker(
+                    state = markerState,
+                    title = username,
+                    icon = if (avatarBitmap != null) {
+                        BitmapDescriptorFactory.fromBitmap(avatarBitmap!!)
+                    } else {
+                        BitmapDescriptorFactory.defaultMarker()
+                    }
+                )
+
+                LaunchedEffect(markerState, username) {
+                    if (username.isNotBlank()) {
+                        markerState.showInfoWindow()
+                    }
                 }
             }
         } else {
