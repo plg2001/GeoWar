@@ -26,6 +26,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import com.example.geowar.data.ApiClient
 import com.example.geowar.data.auth.UserResponse
 import com.example.geowar.ui.LandingScreen
 import com.example.geowar.ui.MapScreen
@@ -45,6 +46,9 @@ import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
 
+const val PREFS_NAME = "geowar_prefs"
+const val PREF_USER_ID = "USER_ID"
+const val PREF_TEAM = "TEAM"
 
 class MainActivity : ComponentActivity() {
 
@@ -65,7 +69,7 @@ class MainActivity : ComponentActivity() {
         windowInsetsController.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
 
         windowInsetsController.hide(WindowInsetsCompat.Type.navigationBars())
-        val sharedPref = getPreferences(Context.MODE_PRIVATE)
+        val sharedPref = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
 
         setContent {
             GeoWarTheme {
@@ -86,8 +90,8 @@ class MainActivity : ComponentActivity() {
                         composable("landing") {
                             LandingScreen(
                                 onStartClick = {
-                                    val savedTeam = sharedPref.getString("TEAM", null)
-                                    val savedUserId = sharedPref.getInt("USER_ID", -1)
+                                    val savedTeam = sharedPref.getString(PREF_TEAM, null)
+                                    val savedUserId = sharedPref.getInt(PREF_USER_ID, -1)
                                     
                                     if (savedTeam != null && savedUserId != -1) {
                                         currentUserId = savedUserId
@@ -111,7 +115,7 @@ class MainActivity : ComponentActivity() {
                             fun handleLoginSuccess(userResponse: UserResponse) {
                                 currentUserId = userResponse.id
                                 sharedPref.edit { 
-                                    putInt("USER_ID", userResponse.id) 
+                                    putInt(PREF_USER_ID, userResponse.id) 
                                 }
 
                                 Toast.makeText(
@@ -177,7 +181,7 @@ class MainActivity : ComponentActivity() {
                         composable("team_selection") {
                             TeamSelectionScreen(
                                 onTeamSelected = { team ->
-                                    sharedPref.edit { putString("TEAM", team) }
+                                    sharedPref.edit { putString(PREF_TEAM, team) }
 
                                     if (currentUserId != null) {
                                         viewModel.setTeam(currentUserId!!, team) { _, _ -> }
@@ -232,6 +236,7 @@ class MainActivity : ComponentActivity() {
                         // -------------------------
                         composable("account") {
                             AccountScreen(
+                                authApi = ApiClient.authApi,
                                 onBackClick = { navController.popBackStack() }
                             )
                         }

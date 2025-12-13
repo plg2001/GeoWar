@@ -1,8 +1,11 @@
 package com.example.geowar.data.auth
 
+import com.example.geowar.models.UserDetails
+import retrofit2.Response
 import retrofit2.http.Body
 import retrofit2.http.GET
 import retrofit2.http.POST
+import retrofit2.http.PUT
 import retrofit2.http.DELETE
 import retrofit2.http.Path
 
@@ -16,9 +19,15 @@ interface AuthApi {
 
     @POST("/auth/google_login") // Assumiamo che il path sia questo
     suspend fun googleLogin(@Body request: GoogleLoginRequest): LoginResponse
-    
+
     @POST("/set_team")
     suspend fun setTeam(@Body request: SetTeamRequest): GenericResponse
+
+    @GET("/user/{user_id}")
+    suspend fun getUserDetails(@Path("user_id") userId: Int): Response<UserDetails>
+
+    @PUT("/user/{user_id}")
+    suspend fun updateUserDetails(@Path("user_id") userId: Int, @Body userDetails: UserDetails): Response<Unit>
 
     // --- ADMIN API ---
     @GET("/admin/users")
@@ -32,7 +41,7 @@ interface AuthApi {
 
     @POST("/admin/create_target")
     suspend fun createTarget(@Body request: CreateTargetRequest): GenericResponse
-    
+
     @DELETE("/admin/delete_target/{id}")
     suspend fun deleteTarget(@Path("id") id: Int): GenericResponse
 }

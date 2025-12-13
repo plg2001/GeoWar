@@ -4,7 +4,7 @@ import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.auth0.android.jwt.JWT
-import com.example.geowar.data.auth.ApiClient
+import com.example.geowar.data.ApiClient
 import com.example.geowar.data.auth.GoogleLoginRequest
 import com.example.geowar.data.auth.LoginRequest
 import com.example.geowar.data.auth.RegisterRequest

@@ -1,5 +1,6 @@
 package com.example.geowar.ui
 
+import android.widget.Toast
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -24,6 +25,7 @@ import androidx.compose.material.icons.filled.Save
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CenterAlignedTopAppBar
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -35,35 +37,57 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextFieldColors
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.geowar.R
+import com.example.geowar.repository.UserRepository
+import com.example.geowar.data.auth.AuthApi
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AccountScreen(
-    onBackClick: () -> Unit
+    onBackClick: () -> Unit,
+    authApi: AuthApi // Supponendo che tu possa passarla o ottenerla da un service locator
 ) {
-    // COLORI CYBERPUNK (ripresi da AdminScreen per coerenza)
+    val context = LocalContext.current
+    val userRepository = UserRepository(authApi, context)
+    val accountViewModel: AccountViewModel = viewModel(factory = AccountViewModelFactory(userRepository))
+
+    val username = accountViewModel.username
+    val email = accountViewModel.email
+    val isLoading = accountViewModel.isLoading
+    val errorMessage = accountViewModel.errorMessage
+
+    // Carica i dati dell'utente all'avvio
+    LaunchedEffect(Unit) {
+        accountViewModel.loadUserProfile()
+    }
+
+    // Mostra un toast in caso di errore
+    LaunchedEffect(errorMessage) {
+        errorMessage?.let {
+            Toast.makeText(context, it, Toast.LENGTH_LONG).show()
+        }
+    }
+
+    // COLORI CYBERPUNK
     val darkBg = Color(0xFF0A0E17)
     val neonBlue = Color(0xFF00E5FF)
     val neonPink = Color(0xFFFF4081)
-    val surfaceColor = Color(0xFF151A25) // Leggermente più chiaro del background
-
-    var username by remember { mutableStateOf("CyberPlayer1") }
-    var email by remember { mutableStateOf("player_one@geowar.net") }
+    val surfaceColor = Color(0xFF151A25)
 
     Scaffold(
         containerColor = darkBg,
@@ -102,114 +126,121 @@ fun AccountScreen(
                 .verticalScroll(rememberScrollState()),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // --- SEZIONE FOTO PROFILO ---
-            Box(
-                contentAlignment = Alignment.BottomEnd,
-                modifier = Modifier
-                    .size(120.dp)
-                    .clip(CircleShape)
-                    .border(2.dp, neonBlue, CircleShape)
-            ) {
-                // Placeholder per l'immagine del profilo. Aggiungi la tua logica per caricarla.
-                Image(
-                    painter = painterResource(id = R.drawable.ic_launcher_background), // Sostituisci con l'immagine reale
-                    contentDescription = "Foto Profilo",
-                    modifier = Modifier.fillMaxSize(),
-                    contentScale = ContentScale.Crop
-                )
-                IconButton(
-                    onClick = { /* TODO: Logica per cambiare foto */ },
+            if (isLoading) {
+                CircularProgressIndicator(color = neonBlue)
+            } else {
+                // --- SEZIONE FOTO PROFILO ---
+                Box(
+                    contentAlignment = Alignment.BottomEnd,
                     modifier = Modifier
-                        .size(40.dp)
-                        .background(surfaceColor, CircleShape)
-                        .border(1.dp, neonBlue, CircleShape)
+                        .size(120.dp)
+                        .clip(CircleShape)
+                        .border(2.dp, neonBlue, CircleShape)
                 ) {
-                    Icon(Icons.Default.Edit, contentDescription = "Modifica foto", tint = neonBlue)
+                    Image(
+                        painter = painterResource(id = R.drawable.ic_launcher_background),
+                        contentDescription = "Foto Profilo",
+                        modifier = Modifier.fillMaxSize(),
+                        contentScale = ContentScale.Crop
+                    )
+                    IconButton(
+                        onClick = { /* TODO: Logica per cambiare foto */ },
+                        modifier = Modifier
+                            .size(40.dp)
+                            .background(surfaceColor, CircleShape)
+                            .border(1.dp, neonBlue, CircleShape)
+                    ) {
+                        Icon(Icons.Default.Edit, contentDescription = "Modifica foto", tint = neonBlue)
+                    }
                 }
-            }
 
-            Spacer(modifier = Modifier.height(24.dp))
+                Spacer(modifier = Modifier.height(24.dp))
 
-            // --- SEZIONE DATI UTENTE ---
-            Text(
-                "MODIFICA DATI",
-                style = MaterialTheme.typography.titleMedium,
-                color = neonBlue,
-                letterSpacing = 1.sp
-            )
-            Spacer(modifier = Modifier.height(16.dp))
+                // --- SEZIONE DATI UTENTE ---
+                Text(
+                    "MODIFICA DATI",
+                    style = MaterialTheme.typography.titleMedium,
+                    color = neonBlue,
+                    letterSpacing = 1.sp
+                )
+                Spacer(modifier = Modifier.height(16.dp))
 
-            OutlinedTextField(
-                value = username,
-                onValueChange = { username = it },
-                label = { Text("Username") },
-                modifier = Modifier.fillMaxWidth(),
-                colors = getCyberTextFieldColors(neonBlue, surfaceColor)
-            )
-            Spacer(modifier = Modifier.height(8.dp))
-            OutlinedTextField(
-                value = email,
-                onValueChange = { email = it },
-                label = { Text("Email") },
-                modifier = Modifier.fillMaxWidth(),
-                colors = getCyberTextFieldColors(neonBlue, surfaceColor)
-            )
+                OutlinedTextField(
+                    value = username,
+                    onValueChange = { accountViewModel.updateUsername(it) },
+                    label = { Text("Username") },
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = getCyberTextFieldColors(neonBlue, surfaceColor)
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                OutlinedTextField(
+                    value = email,
+                    onValueChange = { accountViewModel.updateEmail(it) },
+                    label = { Text("Email") },
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = getCyberTextFieldColors(neonBlue, surfaceColor)
+                )
 
-            Spacer(modifier = Modifier.height(24.dp))
+                Spacer(modifier = Modifier.height(24.dp))
 
-            // --- SEZIONE AVATAR DICEBAR ---
-            Text(
-                "AVATAR DI GIOCO",
-                style = MaterialTheme.typography.titleMedium,
-                color = neonPink,
-                letterSpacing = 1.sp
-            )
-            Text(
-                "Questo avatar sarà visibile agli altri giocatori sulla mappa.",
-                fontSize = 12.sp,
-                color = Color.Gray,
-                textAlign = TextAlign.Center,
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
-            )
-            Spacer(modifier = Modifier.height(16.dp))
+                // --- SEZIONE AVATAR DICEBAR ---
+                Text(
+                    "AVATAR DI GIOCO",
+                    style = MaterialTheme.typography.titleMedium,
+                    color = neonPink,
+                    letterSpacing = 1.sp
+                )
+                Text(
+                    "Questo avatar sarà visibile agli altri giocatori sulla mappa.",
+                    fontSize = 12.sp,
+                    color = Color.Gray,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
+                )
+                Spacer(modifier = Modifier.height(16.dp))
 
-            // Placeholder per l'avatar Dicebar
-            Box(
-                modifier = Modifier
-                    .size(100.dp)
-                    .background(surfaceColor, CutCornerShape(12.dp))
-                    .border(1.dp, neonPink.copy(alpha = 0.5f), CutCornerShape(12.dp)),
-                contentAlignment = Alignment.Center
-            ) {
-                // Qui andrà l'immagine dell'avatar caricata da Dicebear API
-                Text("AVATAR", color = neonPink, fontWeight = FontWeight.Bold)
-            }
+                Box(
+                    modifier = Modifier
+                        .size(100.dp)
+                        .background(surfaceColor, CutCornerShape(12.dp))
+                        .border(1.dp, neonPink.copy(alpha = 0.5f), CutCornerShape(12.dp)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text("AVATAR", color = neonPink, fontWeight = FontWeight.Bold)
+                }
 
-            Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(16.dp))
 
-            Button(
-                onClick = { /* TODO: Logica per generare nuovo avatar con Dicebar */ },
-                shape = CutCornerShape(topStart = 8.dp, bottomEnd = 8.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = neonPink),
-                border = BorderStroke(1.dp, neonPink.copy(alpha = 0.7f))
-            ) {
-                Text("GENERA NUOVO AVATAR", fontWeight = FontWeight.Bold)
-            }
+                Button(
+                    onClick = { /* TODO: Logica per generare nuovo avatar */ },
+                    shape = CutCornerShape(topStart = 8.dp, bottomEnd = 8.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = neonPink),
+                    border = BorderStroke(1.dp, neonPink.copy(alpha = 0.7f))
+                ) {
+                    Text("GENERA NUOVO AVATAR", fontWeight = FontWeight.Bold)
+                }
 
-            Spacer(modifier = Modifier.weight(1f)) // Spazio flessibile per spingere il bottone in basso
+                Spacer(modifier = Modifier.weight(1f))
 
-            // --- BOTTONE SALVA ---
-            Button(
-                onClick = { /* TODO: Logica per salvare i dati */ },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(50.dp),
-                shape = CutCornerShape(12.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = neonBlue),
-            ) {
-                Icon(Icons.Default.Save, contentDescription = null, tint = Color.Black)
-                Spacer(modifier = Modifier.width(8.dp))
-                Text("SALVA MODIFICHE", color = Color.Black, fontWeight = FontWeight.Bold)
+                // --- BOTTONE SALVA ---
+                Button(
+                    onClick = {
+                        accountViewModel.saveChanges {
+                            Toast.makeText(context, "Profilo aggiornato!", Toast.LENGTH_SHORT).show()
+                            onBackClick()
+                        }
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(50.dp),
+                    shape = CutCornerShape(12.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = neonBlue),
+                    enabled = !isLoading
+                ) {
+                    Icon(Icons.Default.Save, contentDescription = null, tint = Color.Black)
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("SALVA MODIFICHE", color = Color.Black, fontWeight = FontWeight.Bold)
+                }
             }
         }
     }
@@ -228,4 +259,15 @@ private fun getCyberTextFieldColors(activeColor: Color, surfaceColor: Color): Te
         focusedContainerColor = surfaceColor,
         unfocusedContainerColor = surfaceColor,
     )
+}
+
+// Factory per il ViewModel
+class AccountViewModelFactory(private val userRepository: UserRepository) : androidx.lifecycle.ViewModelProvider.Factory {
+    override fun <T : androidx.lifecycle.ViewModel> create(modelClass: Class<T>): T {
+        if (modelClass.isAssignableFrom(AccountViewModel::class.java)) {
+            @Suppress("UNCHECKED_CAST")
+            return AccountViewModel(userRepository) as T
+        }
+        throw IllegalArgumentException("Unknown ViewModel class")
+    }
 }
