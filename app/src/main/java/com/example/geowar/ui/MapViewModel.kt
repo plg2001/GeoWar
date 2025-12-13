@@ -26,10 +26,10 @@ class MapViewModel(application: Application) : AndroidViewModel(application) {
         private set
 
     private var movementJob: Job? = null
-    
+
     // MODIFICA 1: Riduco la velocità (era 0.00005)
     // 0.00001 è circa 1 metro a tick (molto più lento e controllabile)
-    private val moveSpeed = 0.00001 
+    private val moveSpeed = 0.00001
 
     private val userRepository = UserRepository(ApiClient.authApi, application)
 
