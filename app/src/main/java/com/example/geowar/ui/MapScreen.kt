@@ -40,6 +40,7 @@ import kotlinx.coroutines.launch
 @SuppressLint("MissingPermission")
 @Composable
 fun MapScreen(
+    username: String,
     team: String,
     onLogout: () -> Unit,
     onAccountClick: () -> Unit
@@ -146,13 +147,13 @@ fun MapScreen(
                 if (avatarBitmap != null) {
                     Marker(
                         state = MarkerState(position = playerPosition),
-                        title = "Tu ($team)",
+                        title = "$username",
                         icon = BitmapDescriptorFactory.fromBitmap(avatarBitmap!!)
                     )
                 } else {
                     Marker(
                         state = MarkerState(position = playerPosition),
-                        title = "Tu ($team)",
+                        title = "$username",
                         icon = BitmapDescriptorFactory.defaultMarker()
                     )
                 }

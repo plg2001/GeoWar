@@ -49,6 +49,7 @@ import androidx.core.view.WindowInsetsControllerCompat
 const val PREFS_NAME = "geowar_prefs"
 const val PREF_USER_ID = "USER_ID"
 const val PREF_TEAM = "TEAM"
+const val PREF_USERNAME = "USERNAME"
 
 class MainActivity : ComponentActivity() {
 
@@ -115,7 +116,8 @@ class MainActivity : ComponentActivity() {
                             fun handleLoginSuccess(userResponse: UserResponse) {
                                 currentUserId = userResponse.id
                                 sharedPref.edit { 
-                                    putInt(PREF_USER_ID, userResponse.id) 
+                                    putInt(PREF_USER_ID, userResponse.id)
+                                    putString(PREF_USERNAME, userResponse.username) 
                                 }
 
                                 Toast.makeText(
@@ -202,7 +204,9 @@ class MainActivity : ComponentActivity() {
                         // -------------------------
                         composable("map/{team}") { backStackEntry ->
                             val team = backStackEntry.arguments?.getString("team") ?: "UNKNOWN"
+                            val username = sharedPref.getString(PREF_USERNAME, "") ?: ""
                             MapScreen(
+                                username = username,
                                 team = team,
                                 onLogout = {
                                     sharedPref.edit { clear() }
