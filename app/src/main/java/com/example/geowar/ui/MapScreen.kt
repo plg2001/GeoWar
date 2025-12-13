@@ -2,6 +2,8 @@ package com.example.geowar.ui
 
 import android.Manifest
 import android.annotation.SuppressLint
+import android.graphics.Bitmap
+import android.graphics.Canvas
 import android.os.Looper
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -22,11 +24,15 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.core.content.ContextCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
+import coil.imageLoader
+import coil.request.ImageRequest
 import com.example.geowar.R
 import com.example.geowar.ui.composables.Joystick
 import com.google.android.gms.location.*
 import com.google.android.gms.maps.CameraUpdateFactory
+import com.google.android.gms.maps.model.BitmapDescriptor
 import com.google.android.gms.maps.model.BitmapDescriptorFactory
 import com.google.android.gms.maps.model.CameraPosition
 import com.google.android.gms.maps.model.LatLng
@@ -49,6 +55,7 @@ fun MapScreen(
 
     val fusedLocationClient = remember { LocationServices.getFusedLocationProviderClient(context) }
     val playerPosition = mapViewModel.playerPosition
+    val avatarSeed by remember { derivedStateOf { mapViewModel.avatarSeed } }
 
     var hasPermission by remember { mutableStateOf(false) }
     var showLogoutDialog by remember { mutableStateOf(false) }
@@ -79,53 +86,69 @@ fun MapScreen(
             object : LocationCallback() {
                 override fun onLocationResult(locationResult: LocationResult) {
                     locationResult.lastLocation?.let {
-                        // Inizializza la posizione del ViewModel solo la prima volta
                         mapViewModel.initializePlayerPosition(LatLng(it.latitude, it.longitude))
                     }
                 }
             }
         }
 
-        // Questo effect si occupa di richiedere e rimuovere gli aggiornamenti GPS
         DisposableEffect(fusedLocationClient) {
             fusedLocationClient.requestLocationUpdates(locationRequest, locationCallback, Looper.getMainLooper())
             onDispose {
                 fusedLocationClient.removeLocationUpdates(locationCallback)
-                mapViewModel.stopMoving() // Assicurati che il movimento si fermi uscendo dalla schermata
+                mapViewModel.stopMoving()
             }
         }
     }
 
-    // Questo effect anima la camera verso la posizione del giocatore quando cambia
     LaunchedEffect(playerPosition) {
         playerPosition?.let {
             cameraPositionState.animate(CameraUpdateFactory.newLatLngZoom(it, 18f), 1000)
         }
     }
 
-    val markerHue = if (team == "BLUE") BitmapDescriptorFactory.HUE_AZURE else BitmapDescriptorFactory.HUE_ROSE
     val teamColor = if (team == "BLUE") Color(0xFF00E5FF) else Color(0xFFFF4081)
 
+    var avatarBitmap by remember { mutableStateOf<Bitmap?>(null) }
+
+    LaunchedEffect(avatarSeed) {
+        avatarSeed?.let {
+            val request = ImageRequest.Builder(context)
+                .data("https://api.dicebear.com/7.x/pixel-art/png?seed=$it")
+                .target {
+                    avatarBitmap = (it as android.graphics.drawable.BitmapDrawable).bitmap
+                }.build()
+            context.imageLoader.enqueue(request)
+        }
+    }
+
+
     Box(modifier = Modifier.fillMaxSize()) {
-        // Mostra la mappa solo se la posizione è stata inizializzata
         if (playerPosition != null) {
             GoogleMap(
                 modifier = Modifier.fillMaxSize(),
                 cameraPositionState = cameraPositionState,
                 properties = MapProperties(
-                    isMyLocationEnabled = false, // Disabilitato per usare il nostro marker
+                    isMyLocationEnabled = false,
                     mapStyleOptions = customMapStyle
                 ),
                 uiSettings = MapUiSettings(zoomControlsEnabled = false, myLocationButtonEnabled = false)
             ) {
-                Marker(
-                    state = MarkerState(position = playerPosition),
-                    title = "Tu ($team)",
-                    icon = BitmapDescriptorFactory.defaultMarker(markerHue)
-                )
+                if (avatarBitmap != null) {
+                    Marker(
+                        state = MarkerState(position = playerPosition),
+                        title = "Tu ($team)",
+                        icon = BitmapDescriptorFactory.fromBitmap(avatarBitmap!!)
+                    )
+                } else {
+                    Marker(
+                        state = MarkerState(position = playerPosition),
+                        title = "Tu ($team)",
+                        icon = BitmapDescriptorFactory.defaultMarker()
+                    )
+                }
             }
         } else {
-            // Schermata di caricamento mentre si attende il segnale GPS
             Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     CircularProgressIndicator()
@@ -135,7 +158,6 @@ fun MapScreen(
             }
         }
 
-        // UI sovrapposta alla mappa
         Row(
             modifier = Modifier
                 .align(Alignment.TopCenter)
@@ -161,7 +183,6 @@ fun MapScreen(
             }
         }
 
-        // Mostra il joystick solo se la posizione è stata inizializzata
         if (playerPosition != null) {
             Box(
                 modifier = Modifier

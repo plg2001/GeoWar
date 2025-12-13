@@ -1,22 +1,42 @@
 package com.example.geowar.ui
 
+import android.app.Application
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
-import androidx.lifecycle.ViewModel
+import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.geowar.data.ApiClient
+import com.example.geowar.repository.UserRepository
 import com.google.android.gms.maps.model.LatLng
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
-class MapViewModel : ViewModel() {
+class MapViewModel(application: Application) : AndroidViewModel(application) {
 
     var playerPosition by mutableStateOf<LatLng?>(null)
         private set
 
+    var avatarSeed by mutableStateOf<String?>(null)
+        private set
+
     private var movementJob: Job? = null
     private val moveSpeed = 0.00005 // Velocità di movimento sulla mappa
+
+    private val userRepository = UserRepository(ApiClient.authApi, application)
+
+    init {
+        loadAvatar()
+    }
+
+    private fun loadAvatar() {
+        viewModelScope.launch {
+            userRepository.getCurrentUserDetails().onSuccess {
+                avatarSeed = it.avatar_seed
+            }
+        }
+    }
 
     fun initializePlayerPosition(initialLocation: LatLng) {
         if (playerPosition == null) {
