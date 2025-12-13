@@ -54,6 +54,7 @@ fun MapScreen(
     val fusedLocationClient = remember { LocationServices.getFusedLocationProviderClient(context) }
     val playerPosition = mapViewModel.playerPosition
     val avatarSeed by remember { derivedStateOf { mapViewModel.avatarSeed } }
+    val targets by remember { derivedStateOf { mapViewModel.targets } }
 
     var hasPermission by remember { mutableStateOf(false) }
     var showLogoutDialog by remember { mutableStateOf(false) }
@@ -144,6 +145,7 @@ fun MapScreen(
                 ),
                 uiSettings = MapUiSettings(zoomControlsEnabled = false, myLocationButtonEnabled = false)
             ) {
+                // Marker Giocatore
                 if (avatarBitmap != null) {
                     Marker(
                         state = MarkerState(position = playerPosition),
@@ -155,6 +157,22 @@ fun MapScreen(
                         state = MarkerState(position = playerPosition),
                         title = "$username",
                         icon = BitmapDescriptorFactory.defaultMarker()
+                    )
+                }
+
+                // Marker Target
+                targets.forEach { target ->
+                    val targetColor = when (target.owner) {
+                        "BLUE" -> BitmapDescriptorFactory.HUE_AZURE
+                        "RED" -> BitmapDescriptorFactory.HUE_RED
+                        else -> BitmapDescriptorFactory.HUE_YELLOW // NEUTRAL
+                    }
+                    
+                    Marker(
+                        state = MarkerState(position = LatLng(target.lat, target.lon)),
+                        title = target.name,
+                        snippet = "Owner: ${target.owner}",
+                        icon = BitmapDescriptorFactory.defaultMarker(targetColor)
                     )
                 }
             }

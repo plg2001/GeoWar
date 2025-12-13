@@ -7,6 +7,7 @@ import androidx.compose.runtime.setValue
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.geowar.data.auth.ApiClient
+import com.example.geowar.data.auth.TargetResponse
 import com.example.geowar.repository.UserRepository
 import com.google.android.gms.maps.model.LatLng
 import kotlinx.coroutines.Job
@@ -21,6 +22,9 @@ class MapViewModel(application: Application) : AndroidViewModel(application) {
     var avatarSeed by mutableStateOf<String?>(null)
         private set
 
+    var targets by mutableStateOf<List<TargetResponse>>(emptyList())
+        private set
+
     private var movementJob: Job? = null
     
     // MODIFICA 1: Riduco la velocità (era 0.00005)
@@ -31,6 +35,7 @@ class MapViewModel(application: Application) : AndroidViewModel(application) {
 
     init {
         loadAvatar()
+        loadTargets()
     }
 
     private fun loadAvatar() {
@@ -45,6 +50,16 @@ class MapViewModel(application: Application) : AndroidViewModel(application) {
     // Da chiamare quando si torna dalla schermata di modifica profilo
     fun reloadAvatar() {
         loadAvatar()
+    }
+
+    fun loadTargets() {
+        viewModelScope.launch {
+            try {
+                targets = ApiClient.authApi.getTargets()
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
     }
 
     fun initializePlayerPosition(initialLocation: LatLng) {
