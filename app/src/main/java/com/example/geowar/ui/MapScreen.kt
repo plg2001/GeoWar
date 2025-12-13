@@ -7,9 +7,6 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.*
 import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
@@ -25,7 +22,9 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.geowar.R
+import com.example.geowar.ui.composables.Joystick
 import com.google.android.gms.location.*
 import com.google.android.gms.maps.CameraUpdateFactory
 import com.google.android.gms.maps.model.BitmapDescriptorFactory
@@ -33,31 +32,27 @@ import com.google.android.gms.maps.model.CameraPosition
 import com.google.android.gms.maps.model.LatLng
 import com.google.android.gms.maps.model.MapStyleOptions
 import com.google.maps.android.compose.*
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 @SuppressLint("MissingPermission")
 @Composable
 fun MapScreen(
     team: String,
-    onLogout: () -> Unit, // Callback per il logout
-    onAccountClick: () -> Unit // Callback per la schermata account
+    onLogout: () -> Unit,
+    onAccountClick: () -> Unit
 ) {
     val context = LocalContext.current
+    val mapViewModel: MapViewModel = viewModel()
     val customMapStyle = remember {
         MapStyleOptions.loadRawResourceStyle(context, R.raw.map_style)
     }
 
     val fusedLocationClient = remember { LocationServices.getFusedLocationProviderClient(context) }
+    val playerPosition = mapViewModel.playerPosition
 
-    var userLocation by remember { mutableStateOf(LatLng(41.8902, 12.4922)) }
-    var isFirstLocationReceived by remember { mutableStateOf(false) }
     var hasPermission by remember { mutableStateOf(false) }
-
     var showLogoutDialog by remember { mutableStateOf(false) }
     var isFabMenuExpanded by remember { mutableStateOf(false) }
-
-    val moveStep = 0.00015
 
     val permissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission(),
@@ -65,7 +60,7 @@ fun MapScreen(
     )
 
     val cameraPositionState = rememberCameraPositionState {
-        position = CameraPosition.fromLatLngZoom(userLocation, 17f)
+        position = CameraPosition.fromLatLngZoom(LatLng(45.4642, 9.1900), 10f)
     }
 
     val coroutineScope = rememberCoroutineScope()
@@ -76,31 +71,35 @@ fun MapScreen(
 
     if (hasPermission) {
         val locationRequest = remember {
-            LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, 2000L).apply {
-                setMinUpdateIntervalMillis(1000L)
+            LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, 5000L).apply {
+                setMinUpdateIntervalMillis(2000L)
             }.build()
         }
         val locationCallback = remember {
             object : LocationCallback() {
                 override fun onLocationResult(locationResult: LocationResult) {
-                    if (!isFirstLocationReceived) {
-                        locationResult.lastLocation?.let {
-                            userLocation = LatLng(it.latitude, it.longitude)
-                            isFirstLocationReceived = true
-                        }
+                    locationResult.lastLocation?.let {
+                        // Inizializza la posizione del ViewModel solo la prima volta
+                        mapViewModel.initializePlayerPosition(LatLng(it.latitude, it.longitude))
                     }
                 }
             }
         }
+
+        // Questo effect si occupa di richiedere e rimuovere gli aggiornamenti GPS
         DisposableEffect(fusedLocationClient) {
             fusedLocationClient.requestLocationUpdates(locationRequest, locationCallback, Looper.getMainLooper())
-            onDispose { fusedLocationClient.removeLocationUpdates(locationCallback) }
+            onDispose {
+                fusedLocationClient.removeLocationUpdates(locationCallback)
+                mapViewModel.stopMoving() // Assicurati che il movimento si fermi uscendo dalla schermata
+            }
         }
     }
 
-    LaunchedEffect(userLocation, isFirstLocationReceived) {
-        if (isFirstLocationReceived) {
-            cameraPositionState.animate(CameraUpdateFactory.newLatLng(userLocation))
+    // Questo effect anima la camera verso la posizione del giocatore quando cambia
+    LaunchedEffect(playerPosition) {
+        playerPosition?.let {
+            cameraPositionState.animate(CameraUpdateFactory.newLatLngZoom(it, 18f), 1000)
         }
     }
 
@@ -108,22 +107,35 @@ fun MapScreen(
     val teamColor = if (team == "BLUE") Color(0xFF00E5FF) else Color(0xFFFF4081)
 
     Box(modifier = Modifier.fillMaxSize()) {
-        GoogleMap(
-            modifier = Modifier.fillMaxSize(),
-            cameraPositionState = cameraPositionState,
-            properties = MapProperties(
-                isMyLocationEnabled = false,
-                mapStyleOptions = customMapStyle
-            ),
-            uiSettings = MapUiSettings(zoomControlsEnabled = false, myLocationButtonEnabled = false)
-        ) {
-            Marker(
-                state = MarkerState(position = userLocation),
-                title = "Tu ($team)",
-                icon = BitmapDescriptorFactory.defaultMarker(markerHue)
-            )
+        // Mostra la mappa solo se la posizione è stata inizializzata
+        if (playerPosition != null) {
+            GoogleMap(
+                modifier = Modifier.fillMaxSize(),
+                cameraPositionState = cameraPositionState,
+                properties = MapProperties(
+                    isMyLocationEnabled = false, // Disabilitato per usare il nostro marker
+                    mapStyleOptions = customMapStyle
+                ),
+                uiSettings = MapUiSettings(zoomControlsEnabled = false, myLocationButtonEnabled = false)
+            ) {
+                Marker(
+                    state = MarkerState(position = playerPosition),
+                    title = "Tu ($team)",
+                    icon = BitmapDescriptorFactory.defaultMarker(markerHue)
+                )
+            }
+        } else {
+            // Schermata di caricamento mentre si attende il segnale GPS
+            Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    CircularProgressIndicator()
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Text("In attesa del segnale GPS...", color = Color.White)
+                }
+            }
         }
 
+        // UI sovrapposta alla mappa
         Row(
             modifier = Modifier
                 .align(Alignment.TopCenter)
@@ -149,32 +161,25 @@ fun MapScreen(
             }
         }
 
-        Box(
-            modifier = Modifier
-                .align(Alignment.BottomEnd)
-                .padding(32.dp)
-                .size(180.dp)
-        ) {
-            Column(
-                modifier = Modifier.align(Alignment.Center),
-                horizontalAlignment = Alignment.CenterHorizontally
+        // Mostra il joystick solo se la posizione è stata inizializzata
+        if (playerPosition != null) {
+            Box(
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .padding(32.dp)
             ) {
-                RepeatingDpadButton(Icons.Default.KeyboardArrowUp) { userLocation = LatLng(userLocation.latitude + moveStep, userLocation.longitude) }
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    RepeatingDpadButton(Icons.Default.KeyboardArrowLeft) { userLocation = LatLng(userLocation.latitude, userLocation.longitude - moveStep) }
-                    Spacer(Modifier.size(50.dp))
-                    RepeatingDpadButton(Icons.Default.KeyboardArrowRight) { userLocation = LatLng(userLocation.latitude, userLocation.longitude + moveStep) }
-                }
-                RepeatingDpadButton(Icons.Default.KeyboardArrowDown) { userLocation = LatLng(userLocation.latitude - moveStep, userLocation.longitude) }
+                Joystick(onMove = { dx, dy ->
+                    mapViewModel.startMoving(dx, dy)
+                })
             }
         }
 
-        // --- ELEGANT FLOATING ACTION BUTTON MENU ---
         Box(
             modifier = Modifier
                 .align(Alignment.BottomStart)
                 .padding(start = 32.dp, bottom = 32.dp)
         ) {
+            val rotation by animateFloatAsState(if (isFabMenuExpanded) 45f else 0f, label = "fab_rotation")
             Column(
                 horizontalAlignment = Alignment.Start,
                 verticalArrangement = Arrangement.spacedBy(24.dp, Alignment.Bottom)
@@ -185,36 +190,22 @@ fun MapScreen(
                     exit = fadeOut() + slideOutVertically { it }
                 ) {
                     Column(verticalArrangement = Arrangement.spacedBy(24.dp)) {
-                        FabAction(
-                            icon = Icons.Default.AccountCircle,
-                            label = "Account",
-                            onClick = {
-                                onAccountClick()
-                                isFabMenuExpanded = false
+                        FabAction(icon = Icons.Default.AccountCircle, label = "Account", onClick = onAccountClick)
+                        FabAction(icon = Icons.Default.MyLocation, label = "Centra") {
+                            playerPosition?.let {
+                                coroutineScope.launch {
+                                    cameraPositionState.animate(CameraUpdateFactory.newLatLngZoom(it, 18f))
+                                }
                             }
-                        )
-                        FabAction(
-                            icon = Icons.Default.MyLocation,
-                            label = "Centra",
-                            onClick = {
-                                coroutineScope.launch { cameraPositionState.animate(CameraUpdateFactory.newLatLngZoom(userLocation, 17f)) }
-                                isFabMenuExpanded = false
-                            }
-                        )
+                        }
                     }
                 }
-
-                val rotation by animateFloatAsState(if (isFabMenuExpanded) 45f else 0f, label = "fab_rotation")
                 FloatingActionButton(
                     onClick = { isFabMenuExpanded = !isFabMenuExpanded },
                     containerColor = MaterialTheme.colorScheme.primary,
                     contentColor = MaterialTheme.colorScheme.onPrimary,
                 ) {
-                    Icon(
-                        Icons.Default.Add,
-                        "Apri menu azioni",
-                        modifier = Modifier.rotate(rotation)
-                    )
+                    Icon(Icons.Default.Add, "Apri menu azioni", modifier = Modifier.rotate(rotation))
                 }
             }
         }
@@ -225,10 +216,7 @@ fun MapScreen(
                 title = { Text("Abbandonare la partita?") },
                 text = { Text("Sei sicuro di voler uscire e tornare al menu principale?") },
                 confirmButton = {
-                    Button(
-                        onClick = { showLogoutDialog = false; onLogout() },
-                        colors = ButtonDefaults.buttonColors(containerColor = Color.Red)
-                    ) { Text("Abbandona") }
+                    Button(onClick = { showLogoutDialog = false; onLogout() }, colors = ButtonDefaults.buttonColors(containerColor = Color.Red)) { Text("Abbandona") }
                 },
                 dismissButton = { TextButton({ showLogoutDialog = false }) { Text("Annulla") } }
             )
@@ -237,27 +225,15 @@ fun MapScreen(
 }
 
 @Composable
-private fun FabAction(
-    icon: ImageVector,
-    label: String,
-    onClick: () -> Unit
-) {
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(16.dp)
-    ) {
+private fun FabAction(icon: ImageVector, label: String, onClick: () -> Unit) {
+    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(16.dp)) {
         SmallFloatingActionButton(
             onClick = onClick,
             shape = CircleShape,
             containerColor = MaterialTheme.colorScheme.secondary,
             contentColor = MaterialTheme.colorScheme.onSecondary
-        ) {
-            Icon(imageVector = icon, contentDescription = label)
-        }
-        Card(
-            shape = MaterialTheme.shapes.medium,
-            colors = CardDefaults.cardColors(containerColor = Color.Black.copy(alpha = 0.7f))
-        ) {
+        ) { Icon(imageVector = icon, contentDescription = label) }
+        Card(shape = MaterialTheme.shapes.medium, colors = CardDefaults.cardColors(containerColor = Color.Black.copy(alpha = 0.7f))) {
             Text(
                 text = label,
                 modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
@@ -265,34 +241,6 @@ private fun FabAction(
                 style = MaterialTheme.typography.labelSmall,
                 fontWeight = FontWeight.Bold
             )
-        }
-    }
-}
-
-@Composable
-fun RepeatingDpadButton(icon: ImageVector, onClick: () -> Unit) {
-    val interactionSource = remember { MutableInteractionSource() }
-    val isPressed by interactionSource.collectIsPressedAsState()
-
-    LaunchedEffect(isPressed) {
-        if (isPressed) {
-            while (true) {
-                onClick()
-                delay(50)
-            }
-        }
-    }
-
-    Surface(
-        shape = CircleShape,
-        color = Color.DarkGray.copy(alpha = 0.8f),
-        contentColor = Color.White,
-        modifier = Modifier
-            .size(50.dp)
-            .clickable(interactionSource = interactionSource, indication = null) {}
-    ) {
-        Box(contentAlignment = Alignment.Center) {
-            Icon(icon, null, modifier = Modifier.size(32.dp))
         }
     }
 }
