@@ -68,7 +68,7 @@ class MainActivity : ComponentActivity() {
 
         windowInsetsController.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
 
-        windowInsetsController.hide(WindowInsetsCompat.Type.navigationBars())
+        windowInsetsController.hide(WindowInsetsCompat.Type.systemBars())
         val sharedPref = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
 
         setContent {
