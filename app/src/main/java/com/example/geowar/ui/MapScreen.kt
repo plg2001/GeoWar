@@ -3,7 +3,6 @@ package com.example.geowar.ui
 import android.Manifest
 import android.annotation.SuppressLint
 import android.graphics.Bitmap
-import android.graphics.Canvas
 import android.os.Looper
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -24,7 +23,6 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.core.content.ContextCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.imageLoader
 import coil.request.ImageRequest
@@ -32,7 +30,6 @@ import com.example.geowar.R
 import com.example.geowar.ui.composables.Joystick
 import com.google.android.gms.location.*
 import com.google.android.gms.maps.CameraUpdateFactory
-import com.google.android.gms.maps.model.BitmapDescriptor
 import com.google.android.gms.maps.model.BitmapDescriptorFactory
 import com.google.android.gms.maps.model.CameraPosition
 import com.google.android.gms.maps.model.LatLng
@@ -60,20 +57,25 @@ fun MapScreen(
     var hasPermission by remember { mutableStateOf(false) }
     var showLogoutDialog by remember { mutableStateOf(false) }
     var isFabMenuExpanded by remember { mutableStateOf(false) }
+    
+    // Variabile per capire se è il primo posizionamento della camera
+    var isFirstCameraMove by remember { mutableStateOf(true) }
 
     val permissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission(),
         onResult = { isGranted -> hasPermission = isGranted }
     )
 
+    // Camera inizializzata a zoom alto (20f), anche se la posizione è provvisoria
     val cameraPositionState = rememberCameraPositionState {
-        position = CameraPosition.fromLatLngZoom(LatLng(45.4642, 9.1900), 10f)
+        position = CameraPosition.fromLatLngZoom(LatLng(45.4642, 9.1900), 20f)
     }
 
     val coroutineScope = rememberCoroutineScope()
 
     LaunchedEffect(Unit) {
         permissionLauncher.launch(Manifest.permission.ACCESS_FINE_LOCATION)
+        mapViewModel.reloadAvatar()
     }
 
     if (hasPermission) {
@@ -101,9 +103,17 @@ fun MapScreen(
         }
     }
 
+    // MODIFICA: Logica di aggiornamento camera
     LaunchedEffect(playerPosition) {
         playerPosition?.let {
-            cameraPositionState.animate(CameraUpdateFactory.newLatLngZoom(it, 18f), 1000)
+            if (isFirstCameraMove) {
+                // Primo caricamento: SCATTO immediato allo zoom massimo (20f)
+                cameraPositionState.move(CameraUpdateFactory.newLatLngZoom(it, 20f))
+                isFirstCameraMove = false
+            } else {
+                // Movimenti successivi (Joystick): Animazione rapida (100ms) mantenendo lo zoom
+                cameraPositionState.animate(CameraUpdateFactory.newLatLng(it), 100)
+            }
         }
     }
 
@@ -121,7 +131,6 @@ fun MapScreen(
             context.imageLoader.enqueue(request)
         }
     }
-
 
     Box(modifier = Modifier.fillMaxSize()) {
         if (playerPosition != null) {
@@ -215,7 +224,8 @@ fun MapScreen(
                         FabAction(icon = Icons.Default.MyLocation, label = "Centra") {
                             playerPosition?.let {
                                 coroutineScope.launch {
-                                    cameraPositionState.animate(CameraUpdateFactory.newLatLngZoom(it, 18f))
+                                    // Anche il tasto "Centra" riporta allo zoom massimo
+                                    cameraPositionState.animate(CameraUpdateFactory.newLatLngZoom(it, 20f), 500)
                                 }
                             }
                         }

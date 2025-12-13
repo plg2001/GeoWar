@@ -6,7 +6,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.geowar.data.ApiClient
+import com.example.geowar.data.auth.ApiClient
 import com.example.geowar.repository.UserRepository
 import com.google.android.gms.maps.model.LatLng
 import kotlinx.coroutines.Job
@@ -22,7 +22,10 @@ class MapViewModel(application: Application) : AndroidViewModel(application) {
         private set
 
     private var movementJob: Job? = null
-    private val moveSpeed = 0.00005 // Velocità di movimento sulla mappa
+    
+    // MODIFICA 1: Riduco la velocità (era 0.00005)
+    // 0.00001 è circa 1 metro a tick (molto più lento e controllabile)
+    private val moveSpeed = 0.00001 
 
     private val userRepository = UserRepository(ApiClient.authApi, application)
 
@@ -36,6 +39,12 @@ class MapViewModel(application: Application) : AndroidViewModel(application) {
                 avatarSeed = it.avatar_seed
             }
         }
+    }
+
+    // MODIFICA 2: Funzione pubblica per forzare il ricaricamento dell'avatar
+    // Da chiamare quando si torna dalla schermata di modifica profilo
+    fun reloadAvatar() {
+        loadAvatar()
     }
 
     fun initializePlayerPosition(initialLocation: LatLng) {
@@ -56,7 +65,7 @@ class MapViewModel(application: Application) : AndroidViewModel(application) {
                     playerPosition = LatLng(newLat, newLng)
                     // TODO: Inviare la posizione aggiornata al server qui
                 }
-                delay(100) // Aggiorna la posizione ogni 100ms
+                delay(50) // Aggiorna ogni 50ms per fluidità (era 100ms)
             }
         }
     }
