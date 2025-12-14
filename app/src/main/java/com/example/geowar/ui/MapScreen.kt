@@ -24,6 +24,9 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.imageLoader
 import coil.request.ImageRequest
@@ -77,9 +80,23 @@ fun MapScreen(
 
     val coroutineScope = rememberCoroutineScope()
 
+    // Lifecycle Observer per ricaricare l'avatar quando si torna nella schermata
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                mapViewModel.reloadAvatar()
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+        }
+    }
+
     LaunchedEffect(Unit) {
         permissionLauncher.launch(Manifest.permission.ACCESS_FINE_LOCATION)
-        mapViewModel.reloadAvatar()
+        // mapViewModel.reloadAvatar() // Ora gestito da ON_RESUME
     }
 
     if (hasPermission) {
@@ -122,6 +139,7 @@ fun MapScreen(
     }
 
     val teamColor = if (team == "BLUE") Color(0xFF00E5FF) else Color(0xFFFF4081)
+    val teamHue = if (team == "BLUE") BitmapDescriptorFactory.HUE_CYAN else BitmapDescriptorFactory.HUE_ROSE
 
     var avatarBitmap by remember { mutableStateOf<Bitmap?>(null) }
 
@@ -158,7 +176,7 @@ fun MapScreen(
                     Marker(
                         state = MarkerState(position = playerPosition),
                         title = "$username",
-                        icon = BitmapDescriptorFactory.defaultMarker()
+                        icon = BitmapDescriptorFactory.defaultMarker(teamHue)
                     )
                 }
 
