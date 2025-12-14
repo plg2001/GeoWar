@@ -10,6 +10,7 @@ import androidx.compose.animation.*
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ExitToApp
 import androidx.compose.material.icons.filled.*
@@ -55,11 +56,12 @@ fun MapScreen(
     val playerPosition = mapViewModel.playerPosition
     val avatarSeed by remember { derivedStateOf { mapViewModel.avatarSeed } }
     val targets by remember { derivedStateOf { mapViewModel.targets } }
+    val nearbyTarget by remember { derivedStateOf { mapViewModel.nearbyTarget } }
 
     var hasPermission by remember { mutableStateOf(false) }
     var showLogoutDialog by remember { mutableStateOf(false) }
     var isFabMenuExpanded by remember { mutableStateOf(false) }
-
+    
     // Variabile per capire se è il primo posizionamento della camera
     var isFirstCameraMove by remember { mutableStateOf(true) }
 
@@ -105,7 +107,7 @@ fun MapScreen(
         }
     }
 
-    // MODIFICA: Logica di aggiornamento camera
+    // Logica di aggiornamento camera
     LaunchedEffect(playerPosition) {
         playerPosition?.let {
             if (isFirstCameraMove) {
@@ -167,7 +169,7 @@ fun MapScreen(
                         "RED" -> BitmapDescriptorFactory.HUE_RED
                         else -> BitmapDescriptorFactory.HUE_YELLOW // NEUTRAL
                     }
-
+                    
                     Marker(
                         state = MarkerState(position = LatLng(target.lat, target.lon)),
                         title = target.name,
@@ -185,6 +187,8 @@ fun MapScreen(
                 }
             }
         }
+
+        // --- UI OVERLAY ---
 
         Row(
             modifier = Modifier
@@ -208,6 +212,71 @@ fun MapScreen(
                 modifier = Modifier.size(48.dp)
             ) {
                 Icon(Icons.AutoMirrored.Filled.ExitToApp, "Logout")
+            }
+        }
+        
+        // --- POPUP INTERAZIONE TARGET ---
+        AnimatedVisibility(
+            visible = nearbyTarget != null,
+            enter = scaleIn() + fadeIn(),
+            exit = scaleOut() + fadeOut(),
+            modifier = Modifier.align(Alignment.Center)
+        ) {
+            nearbyTarget?.let { target ->
+                Card(
+                    colors = CardDefaults.cardColors(containerColor = Color.Black.copy(alpha = 0.9f)),
+                    shape = RoundedCornerShape(16.dp),
+                    modifier = Modifier
+                        .padding(32.dp)
+                        .fillMaxWidth()
+                ) {
+                    Column(
+                        modifier = Modifier.padding(16.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        // Header con pulsante chiusura
+                        Box(modifier = Modifier.fillMaxWidth()) {
+                            Text(
+                                text = "TARGET RILEVATO",
+                                color = Color.Yellow,
+                                fontWeight = FontWeight.Bold,
+                                style = MaterialTheme.typography.titleLarge,
+                                modifier = Modifier.align(Alignment.Center)
+                            )
+                            IconButton(
+                                onClick = { mapViewModel.clearNearbyTarget() },
+                                modifier = Modifier.align(Alignment.CenterEnd)
+                            ) {
+                                Icon(Icons.Default.Close, contentDescription = "Chiudi", tint = Color.White)
+                            }
+                        }
+                        
+                        Spacer(modifier = Modifier.height(16.dp))
+                        
+                        Text(
+                            text = "Sei entrato nello spazio conteso di:",
+                            color = Color.White
+                        )
+                        Text(
+                            text = target.name,
+                            color = teamColor,
+                            fontWeight = FontWeight.Bold,
+                            style = MaterialTheme.typography.headlineSmall
+                        )
+                        
+                        Spacer(modifier = Modifier.height(24.dp))
+                        
+                        Button(
+                            onClick = { 
+                                // TODO: Avviare il minigioco
+                            },
+                            colors = ButtonDefaults.buttonColors(containerColor = teamColor),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text("Premi X per iniziare il minigioco", color = Color.Black, fontWeight = FontWeight.Bold)
+                        }
+                    }
+                }
             }
         }
 
@@ -243,7 +312,6 @@ fun MapScreen(
                         FabAction(icon = Icons.Default.MyLocation, label = "Centra") {
                             playerPosition?.let {
                                 coroutineScope.launch {
-                                    // Anche il tasto "Centra" riporta allo zoom massimo
                                     cameraPositionState.animate(CameraUpdateFactory.newLatLngZoom(it, 20f), 500)
                                 }
                             }

@@ -1,6 +1,7 @@
 package com.example.geowar.ui
 
 import android.app.Application
+import android.location.Location
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -8,10 +9,12 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.geowar.data.auth.ApiClient
 import com.example.geowar.data.auth.TargetResponse
+import com.example.geowar.data.auth.UpdatePositionRequest
 import com.example.geowar.repository.UserRepository
 import com.google.android.gms.maps.model.LatLng
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 
 class MapViewModel(application: Application) : AndroidViewModel(application) {
@@ -24,18 +27,22 @@ class MapViewModel(application: Application) : AndroidViewModel(application) {
 
     var targets by mutableStateOf<List<TargetResponse>>(emptyList())
         private set
+    
+    // Variabile per il target vicino (entro 20 metri)
+    var nearbyTarget by mutableStateOf<TargetResponse?>(null)
+        private set
 
     private var movementJob: Job? = null
-
-    // MODIFICA 1: Riduco la velocità (era 0.00005)
-    // 0.00001 è circa 1 metro a tick (molto più lento e controllabile)
-    private val moveSpeed = 0.00001
+    private var heartbeatJob: Job? = null
+    
+    private val moveSpeed = 0.00001 // Circa 1m per tick (50ms)
 
     private val userRepository = UserRepository(ApiClient.authApi, application)
 
     init {
         loadAvatar()
         loadTargets()
+        startHeartbeat()
     }
 
     private fun loadAvatar() {
@@ -46,8 +53,6 @@ class MapViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    // MODIFICA 2: Funzione pubblica per forzare il ricaricamento dell'avatar
-    // Da chiamare quando si torna dalla schermata di modifica profilo
     fun reloadAvatar() {
         loadAvatar()
     }
@@ -69,23 +74,79 @@ class MapViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun startMoving(dx: Float, dy: Float) {
-        movementJob?.cancel() // Ferma il movimento precedente
-        if (dx == 0f && dy == 0f) return // Il joystick è stato rilasciato, ferma tutto
+        movementJob?.cancel()
+        if (dx == 0f && dy == 0f) return
 
         movementJob = viewModelScope.launch {
             while (true) {
                 playerPosition?.let { currentPos ->
                     val newLat = currentPos.latitude + (-dy * moveSpeed)
                     val newLng = currentPos.longitude + (dx * moveSpeed)
-                    playerPosition = LatLng(newLat, newLng)
-                    // TODO: Inviare la posizione aggiornata al server qui
+                    val newPos = LatLng(newLat, newLng)
+                    playerPosition = newPos
+                    
+                    // Controllo prossimità ogni volta che ci muoviamo
+                    checkProximityToTargets(newPos)
                 }
-                delay(50) // Aggiorna ogni 50ms per fluidità (era 100ms)
+                delay(50)
             }
         }
     }
 
     fun stopMoving() {
         movementJob?.cancel()
+    }
+
+    private fun startHeartbeat() {
+        heartbeatJob?.cancel()
+        heartbeatJob = viewModelScope.launch {
+            while (isActive) {
+                playerPosition?.let { pos ->
+                    val userId = userRepository.getUserId()
+                    if (userId != -1) {
+                        try {
+                            ApiClient.authApi.updatePosition(
+                                UpdatePositionRequest(userId, pos.latitude, pos.longitude)
+                            )
+                        } catch (e: Exception) {
+                            e.printStackTrace()
+                        }
+                    }
+                }
+                delay(3000) // 3 secondi
+            }
+        }
+    }
+
+    private fun checkProximityToTargets(currentPos: LatLng) {
+        // Se c'è già un target attivo (popup aperto), non cerchiamo altro per evitare spam/flash
+        if (nearbyTarget != null) return
+
+        var foundTarget: TargetResponse? = null
+        val distanceResults = FloatArray(1)
+
+        for (target in targets) {
+            Location.distanceBetween(
+                currentPos.latitude, currentPos.longitude,
+                target.lat, target.lon,
+                distanceResults
+            )
+            // Se distanza < 20 metri
+            if (distanceResults[0] < 20) {
+                foundTarget = target
+                break // Trovato uno, usciamo
+            }
+        }
+        nearbyTarget = foundTarget
+    }
+    
+    fun clearNearbyTarget() {
+        nearbyTarget = null
+    }
+
+    override fun onCleared() {
+        super.onCleared()
+        movementJob?.cancel()
+        heartbeatJob?.cancel()
     }
 }

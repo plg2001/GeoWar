@@ -44,4 +44,8 @@ interface AuthApi {
 
     @DELETE("/admin/delete_target/{id}")
     suspend fun deleteTarget(@Path("id") id: Int): GenericResponse
+
+    // NUOVO: Aggiornamento posizione
+    @POST("/update_position")
+    suspend fun updatePosition(@Body request: UpdatePositionRequest): GenericResponse
 }

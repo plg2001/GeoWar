@@ -25,9 +25,10 @@ data class SetTeamRequest(
 data class UserResponse(
     val id: Int,
     val username: String,
-    val admin: Boolean = false, // NUOVO: Flag amministratore
+    val admin: Boolean = false,
     val team: String? = null,
-    val score: Int = 0
+    val score: Int = 0,
+    val avatar_seed: String? = null
 )
 
 data class LoginResponse(
@@ -68,4 +69,11 @@ data class TargetResponse(
     val lat: Double,
     val lon: Double,
     val owner: String
+)
+
+// NUOVO: Richiesta aggiornamento posizione
+data class UpdatePositionRequest(
+    val user_id: Int,
+    val lat: Double,
+    val lon: Double
 )

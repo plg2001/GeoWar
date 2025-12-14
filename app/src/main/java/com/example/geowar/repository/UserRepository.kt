@@ -8,7 +8,8 @@ import com.example.geowar.models.UserDetails
 
 class UserRepository(private val apiService: AuthApi, private val context: Context) {
 
-    private fun getUserId(): Int {
+    // Resa pubblica per utilizzo nel ViewModel
+    fun getUserId(): Int {
         val sharedPref = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
         return sharedPref.getInt(PREF_USER_ID, -1)
     }
