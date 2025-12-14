@@ -10,6 +10,7 @@ import androidx.lifecycle.viewModelScope
 import com.example.geowar.data.auth.ApiClient
 import com.example.geowar.data.auth.TargetResponse
 import com.example.geowar.data.auth.UpdatePositionRequest
+import com.example.geowar.data.auth.UserResponse
 import com.example.geowar.repository.UserRepository
 import com.google.android.gms.maps.model.LatLng
 import kotlinx.coroutines.Job
@@ -32,8 +33,13 @@ class MapViewModel(application: Application) : AndroidViewModel(application) {
     var nearbyTarget by mutableStateOf<TargetResponse?>(null)
         private set
 
+    // Lista degli altri giocatori
+    var otherPlayers by mutableStateOf<List<UserResponse>>(emptyList())
+        private set
+
     private var movementJob: Job? = null
     private var heartbeatJob: Job? = null
+    private var playersFetcherJob: Job? = null
     
     private val moveSpeed = 0.00001 // Circa 1m per tick (50ms)
 
@@ -43,6 +49,7 @@ class MapViewModel(application: Application) : AndroidViewModel(application) {
         loadAvatar()
         loadTargets()
         startHeartbeat()
+        startFetchingPlayers()
     }
 
     private fun loadAvatar() {
@@ -118,6 +125,27 @@ class MapViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    private fun startFetchingPlayers() {
+        playersFetcherJob?.cancel()
+        playersFetcherJob = viewModelScope.launch {
+            while (isActive) {
+                try {
+                    // Usiamo users_positions che è l'endpoint corretto per tutti gli utenti, non solo admin
+                    val activeUsers = ApiClient.authApi.getUsersPositions()
+                    val currentUserId = userRepository.getUserId()
+                    
+                    // Filtra te stesso
+                    otherPlayers = activeUsers.filter { 
+                        it.id != currentUserId 
+                    }
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                }
+                delay(3000) // Aggiorna ogni 3 secondi
+            }
+        }
+    }
+
     private fun checkProximityToTargets(currentPos: LatLng) {
         // Se c'è già un target attivo (popup aperto), non cerchiamo altro per evitare spam/flash
         if (nearbyTarget != null) return
@@ -148,5 +176,6 @@ class MapViewModel(application: Application) : AndroidViewModel(application) {
         super.onCleared()
         movementJob?.cancel()
         heartbeatJob?.cancel()
+        playersFetcherJob?.cancel()
     }
 }

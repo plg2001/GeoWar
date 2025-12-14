@@ -28,7 +28,9 @@ data class UserResponse(
     val admin: Boolean = false,
     val team: String? = null,
     val score: Int = 0,
-    val avatar_seed: String? = null
+    val avatar_seed: String? = null,
+    val lat: Double? = null,
+    val lon: Double? = null
 )
 
 data class LoginResponse(

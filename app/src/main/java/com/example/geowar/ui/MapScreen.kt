@@ -60,6 +60,7 @@ fun MapScreen(
     val avatarSeed by remember { derivedStateOf { mapViewModel.avatarSeed } }
     val targets by remember { derivedStateOf { mapViewModel.targets } }
     val nearbyTarget by remember { derivedStateOf { mapViewModel.nearbyTarget } }
+    val otherPlayers by remember { derivedStateOf { mapViewModel.otherPlayers } }
 
     var hasPermission by remember { mutableStateOf(false) }
     var showLogoutDialog by remember { mutableStateOf(false) }
@@ -142,6 +143,11 @@ fun MapScreen(
     val teamHue = if (team == "BLUE") BitmapDescriptorFactory.HUE_CYAN else BitmapDescriptorFactory.HUE_ROSE
 
     var avatarBitmap by remember { mutableStateOf<Bitmap?>(null) }
+    
+    // Mappa per salvare le bitmap degli avatar degli altri giocatori
+    // Chiave: username, Valore: Pair(avatarSeed, Bitmap)
+    // Usiamo una Pair per controllare se il seed è cambiato
+    val otherPlayersBitmaps = remember { mutableStateMapOf<String, Pair<String, Bitmap>>() }
 
     LaunchedEffect(avatarSeed) {
         avatarSeed?.let {
@@ -151,6 +157,26 @@ fun MapScreen(
                     avatarBitmap = (it as android.graphics.drawable.BitmapDrawable).bitmap
                 }.build()
             context.imageLoader.enqueue(request)
+        }
+    }
+    
+    // Scarica gli avatar per gli altri giocatori
+    LaunchedEffect(otherPlayers) {
+        otherPlayers.forEach { player ->
+            if (player.avatar_seed != null) {
+                val cached = otherPlayersBitmaps[player.username]
+                
+                // Scarica se non c'è in cache O se il seed è diverso
+                if (cached == null || cached.first != player.avatar_seed) {
+                    val request = ImageRequest.Builder(context)
+                        .data("https://api.dicebear.com/7.x/pixel-art/png?seed=${player.avatar_seed}")
+                        .target {
+                             val bitmap = (it as android.graphics.drawable.BitmapDrawable).bitmap
+                             otherPlayersBitmaps[player.username] = Pair(player.avatar_seed, bitmap)
+                        }.build()
+                    context.imageLoader.enqueue(request)
+                }
+            }
         }
     }
 
@@ -178,6 +204,30 @@ fun MapScreen(
                         title = "$username",
                         icon = BitmapDescriptorFactory.defaultMarker(teamHue)
                     )
+                }
+                
+                // Marker Altri Giocatori
+                otherPlayers.forEach { player ->
+                    val playerPos = LatLng(player.lat ?: 0.0, player.lon ?: 0.0)
+                    val playerColor = if (player.team == "BLUE") BitmapDescriptorFactory.HUE_CYAN else if (player.team == "RED") BitmapDescriptorFactory.HUE_ROSE else BitmapDescriptorFactory.HUE_VIOLET
+                    
+                    val playerCache = otherPlayersBitmaps[player.username]
+                    
+                    if (playerCache != null) {
+                        Marker(
+                            state = MarkerState(position = playerPos),
+                            title = player.username,
+                            snippet = "Team: ${player.team}",
+                            icon = BitmapDescriptorFactory.fromBitmap(playerCache.second)
+                        )
+                    } else {
+                        Marker(
+                            state = MarkerState(position = playerPos),
+                            title = player.username,
+                            snippet = "Team: ${player.team}",
+                            icon = BitmapDescriptorFactory.defaultMarker(playerColor)
+                        )
+                    }
                 }
 
                 // Marker Target

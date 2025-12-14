@@ -48,4 +48,8 @@ interface AuthApi {
     // NUOVO: Aggiornamento posizione
     @POST("/update_position")
     suspend fun updatePosition(@Body request: UpdatePositionRequest): GenericResponse
+
+    // NUOVO: Ottenere posizioni giocatori attivi
+    @GET("/users_positions")
+    suspend fun getUsersPositions(): List<UserResponse>
 }
