@@ -99,6 +99,17 @@ class Stun(db.Model):
 
 with app.app_context():
     db.create_all()
+    # Inizializzazione target di esempio se non esistono
+    if not Target.query.first():
+        sample_targets = [
+            Target(name="Duomo di Milano", lat=45.4641, lon=9.1919, owner_team="NEUTRAL"),
+            Target(name="Castello Sforzesco", lat=45.4705, lon=9.1793, owner_team="NEUTRAL"),
+            Target(name="Stazione Centrale", lat=45.4859, lon=9.2035, owner_team="NEUTRAL"),
+            Target(name="Arco della Pace", lat=45.4754, lon=9.1724, owner_team="NEUTRAL"),
+            Target(name="Politecnico di Milano", lat=45.4790, lon=9.2274, owner_team="NEUTRAL")
+        ]
+        db.session.add_all(sample_targets)
+        db.session.commit()
 
 # ---------------- HELPERS ----------------
 
@@ -235,13 +246,13 @@ def update_user_details(user_id):
     # Controlla se il nuovo username o email sono già in uso da *altri* utenti
     if User.query.filter(User.id != user_id, User.username == new_username).first():
         return jsonify({"message": "Username già in uso"}), 409
-    
+
     if User.query.filter(User.id != user_id, User.email == new_email).first():
         return jsonify({"message": "Email già in uso"}), 409
 
     user.username = new_username
     user.email = new_email
-    
+
     # Gestione avatar_seed
     new_avatar_seed = data.get("avatar_seed")
     if new_avatar_seed:
@@ -373,7 +384,6 @@ def google_login():
 
 
 # --- ADMIN ENDPOINTS ---
-# Nota: qui NON c'è auth: in produzione devi proteggere questi endpoint.
 
 @app.route("/admin/users", methods=["GET"])
 def get_all_users():
@@ -383,94 +393,115 @@ def get_all_users():
         "username": u.username,
         "admin": u.admin,
         "team": u.team,
-        "score": u.score,
-        "banned": u.banned
+        "score": u.score
     } for u in users]), 200
 
-
-@app.route("/admin/ban_user", methods=["POST"])
-def ban_user():
-    data = get_json()
-    if not data:
-        return jsonify({"success": False, "message": "JSON mancante o non valido"}), 400
-
-    user_id = data.get("user_id")
-    if not user_id:
-        return jsonify({"success": False, "message": "user_id mancante"}), 400
-
+@app.route("/admin/ban_user/<int:user_id>", methods=["POST"])
+def ban_user(user_id):
     user = User.query.get(user_id)
     if not user:
-        return jsonify({"success": False, "message": "Utente non trovato"}), 404
+        return jsonify({"message": "Utente non trovato"}), 404
 
-    # EVITA delete (può fallire per FK) -> usa flag
     user.banned = True
-    err = db_commit_or_500()
-    if err:
-        return err
+    db.session.commit()
+    return jsonify({"message": f"Utente {user.username} bannato"}), 200
 
-    return jsonify({"success": True, "message": "Utente bannato"}), 200
+@app.route("/admin/unban_user/<int:user_id>", methods=["POST"])
+def unban_user(user_id):
+    user = User.query.get(user_id)
+    if not user:
+        return jsonify({"message": "Utente non trovato"}), 404
 
+    user.banned = False
+    db.session.commit()
+    return jsonify({"message": f"Utente {user.username} sbannato"}), 200
 
 @app.route("/admin/create_target", methods=["POST"])
 def create_target():
     data = get_json()
     if not data:
-        return jsonify({"success": False, "message": "JSON mancante o non valido"}), 400
+        return jsonify({"message": "JSON mancante"}), 400
 
-    name = (data.get("name") or "").strip()
+    name = data.get("name")
     lat = data.get("lat")
     lon = data.get("lon")
-    owner_team = (data.get("owner_team") or "NEUTRAL").strip().upper()
+    owner = data.get("owner_team", "NEUTRAL")
 
     if not name or lat is None or lon is None:
-        return jsonify({"success": False, "message": "Dati mancanti (name, lat, lon)"}), 400
+        return jsonify({"message": "Dati target incompleti"}), 400
 
-    try:
-        lat = float(lat)
-        lon = float(lon)
-    except (TypeError, ValueError):
-        return jsonify({"success": False, "message": "lat/lon non validi"}), 400
-
-    new_target = Target(name=name, lat=lat, lon=lon, owner_team=owner_team)
+    new_target = Target(name=name, lat=lat, lon=lon, owner_team=owner)
     db.session.add(new_target)
     err = db_commit_or_500()
     if err:
         return err
 
-    return jsonify({"success": True, "message": "Target creato", "id": new_target.id}), 200
-
+    return jsonify({"message": "Target creato"}), 200
 
 @app.route("/admin/delete_target/<int:target_id>", methods=["DELETE"])
 def delete_target(target_id):
     target = Target.query.get(target_id)
     if not target:
-        return jsonify({"success": False, "message": "Target non trovato"}), 404
+        return jsonify({"message": "Target non trovato"}), 404
 
     db.session.delete(target)
     err = db_commit_or_500()
     if err:
         return err
 
-    return jsonify({"success": True, "message": "Target eliminato"}), 200
+    return jsonify({"message": "Target eliminato"}), 200
 
 
-# ---------------- GLOBAL ERROR HANDLERS ----------------
 
-@app.errorhandler(404)
-def not_found(_):
-    return jsonify({"message": "Not found"}), 404
+# -------------- LIVE APP -----------------
 
-@app.errorhandler(405)
-def method_not_allowed(_):
-    return jsonify({"message": "Method not allowed"}), 405
+@app.route("/update_position", methods=["POST"])
+def update_position():
+    data = get_json()
+    if not data:
+        return jsonify({"message": "JSON non valido"}), 400
 
-@app.errorhandler(500)
-def internal_error(e):
-    # evita che sessione resti in stato errore
-    db.session.rollback()
-    return jsonify({"message": "Internal server error", "detail": str(e)}), 500
+    user_id = data.get("user_id")
+    lat = data.get("lat")
+    lon = data.get("lon")
+
+    if user_id is None or lat is None or lon is None:
+        return jsonify({"message": "Dati mancanti"}), 400
+
+    user = User.query.get(user_id)
+    if not user or user.banned:
+        return jsonify({"message": "Utente non valido"}), 403
+
+    user.lat = float(lat)
+    user.lon = float(lon)
+    user.last_active = time.time()
+
+    err = db_commit_or_500()
+    if err:
+        return err
+
+    return jsonify({"success": True}), 200
+
+
+
+@app.route("/users_positions", methods=["GET"])
+def users_positions():
+    now = time.time()
+    ACTIVE_SECONDS = 10
+
+    users = User.query.filter(
+        User.last_active >= now - ACTIVE_SECONDS,
+        User.banned == False
+    ).all()
+
+    return jsonify([{
+        "id": u.id,
+        "username": u.username,
+        "lat": u.lat,
+        "lon": u.lon,
+        "team": u.team
+    } for u in users]), 200
 
 
 if __name__ == "__main__":
-    # In produzione: debug=False
-    app.run(host="0.0.0.0", port=5500, debug=False)
+    app.run(port=5500)
