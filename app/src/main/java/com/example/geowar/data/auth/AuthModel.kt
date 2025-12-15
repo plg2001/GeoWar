@@ -79,3 +79,12 @@ data class UpdatePositionRequest(
     val lat: Double,
     val lon: Double
 )
+
+
+
+data class GenerateRandomTargetsRequest(
+    val lat: Double,
+    val lon: Double,
+    val count: Int = 10,
+    val radius_km: Int = 30
+)

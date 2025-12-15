@@ -1,5 +1,7 @@
 import os
 import time
+import random
+import math
 
 from flask import Flask, request, jsonify
 from flask_sqlalchemy import SQLAlchemy
@@ -503,8 +505,62 @@ def users_positions():
     } for u in users]), 200
 
 
+@app.route("/generate_random_targets", methods=["POST"])
+def generate_random_targets():
+    data = get_json()
+    if not data:
+        return jsonify({"message": "JSON non valido"}), 400
 
-# ----------- HAKERAGGIO -------------------------
+    lat = data.get("lat")
+    lon = data.get("lon")
+    count = data.get("count", 10)
+    radius_km = data.get("radius_km", 30)
+
+    if lat is None or lon is None:
+        return jsonify({"message": "Dati mancanti (lat, lon)"}), 400
+
+    # Earth radius in kilometers
+    R = 6378.1 
+
+    new_targets = []
+    for i in range(count):
+        # Convert radius from km to radians
+        radius_rad = radius_km / R
+
+        # Random distance and angle
+        r = radius_rad * math.sqrt(random.random())
+        theta = 2 * math.pi * random.random()
+
+        lat_rad = math.radians(lat)
+        lon_rad = math.radians(lon)
+
+        # New position in radians
+        new_lat_rad = math.asin(math.sin(lat_rad) * math.cos(r) + math.cos(lat_rad) * math.sin(r) * math.cos(theta))
+        new_lon_rad = lon_rad + math.atan2(math.sin(theta) * math.sin(r) * math.cos(lat_rad), math.cos(r) - math.sin(lat_rad) * math.sin(new_lat_rad))
+
+        # Convert back to degrees
+        new_lat = math.degrees(new_lat_rad)
+        new_lon = math.degrees(new_lon_rad)
+
+        target_name = f"Obiettivo Casuale #{int(time.time()) % 1000 + i}"
+
+        target = Target(
+            name=target_name,
+            lat=new_lat,
+            lon=new_lon,
+            owner_team="NEUTRAL"
+        )
+        new_targets.append(target)
+    
+    db.session.add_all(new_targets)
+    err = db_commit_or_500()
+    if err:
+        return err
+
+    return jsonify({"message": f"{count} target casuali generati con successo"}), 200
+
+
+# ----------- HAKERAGGIO ------------------------
 @app.route("/hack", methods=["POST"])
 def hack_target():
     data = get_json()

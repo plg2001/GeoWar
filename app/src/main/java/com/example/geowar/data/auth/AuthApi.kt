@@ -56,4 +56,7 @@ interface AuthApi {
     // NUOVO: Hacking
     @POST("/hack")
     suspend fun hackTarget(@Body request: HackRequest): GenericResponse
+
+    @POST("/generate_random_targets")
+    suspend fun generateRandomTargets(@Body request: GenerateRandomTargetsRequest): GenericResponse
 }

@@ -8,6 +8,7 @@ import androidx.compose.runtime.setValue
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.geowar.data.auth.ApiClient
+import com.example.geowar.data.auth.GenerateRandomTargetsRequest
 import com.example.geowar.data.auth.HackRequest
 import com.example.geowar.data.auth.TargetResponse
 import com.example.geowar.data.auth.UpdatePositionRequest
@@ -42,7 +43,7 @@ class MapViewModel(application: Application) : AndroidViewModel(application) {
     private var heartbeatJob: Job? = null
     private var playersFetcherJob: Job? = null
     
-    private val moveSpeed = 0.00001 // Circa 1m per tick (50ms)
+    private val moveSpeed = 0.0001 // Circa 1m per tick (50ms)
 
     private val userRepository = UserRepository(ApiClient.authApi, application)
 
@@ -78,6 +79,7 @@ class MapViewModel(application: Application) : AndroidViewModel(application) {
     fun initializePlayerPosition(initialLocation: LatLng) {
         if (playerPosition == null) {
             playerPosition = initialLocation
+            // generateRandomTargets(initialLocation) // DECOMMETARE IN FUTURO
         }
     }
 
@@ -186,6 +188,23 @@ class MapViewModel(application: Application) : AndroidViewModel(application) {
                 } catch (e: Exception) {
                     e.printStackTrace()
                 }
+            }
+        }
+    }
+
+    private fun generateRandomTargets(currentLocation: LatLng) {
+        viewModelScope.launch {
+            try {
+                ApiClient.authApi.generateRandomTargets(
+                    GenerateRandomTargetsRequest(
+                        lat = currentLocation.latitude,
+                        lon = currentLocation.longitude
+                    )
+                )
+                // Dopo aver generato i target, ricaricali per visualizzarli
+                loadTargets()
+            } catch (e: Exception) {
+                e.printStackTrace()
             }
         }
     }
