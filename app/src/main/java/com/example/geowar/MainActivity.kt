@@ -103,9 +103,6 @@ class MainActivity : ComponentActivity() {
                                     } else {
                                         navController.navigate("auth")
                                     }
-                                },
-                                onMinigameTestClick = {
-                                    navController.navigate("minigame")
                                 }
                             )
                         }

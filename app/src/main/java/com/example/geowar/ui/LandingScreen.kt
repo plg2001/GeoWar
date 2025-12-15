@@ -15,7 +15,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.LocationOn
-import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -32,8 +31,8 @@ import androidx.compose.ui.unit.sp
 
 @Composable
 fun LandingScreen(
-    onStartClick: () -> Unit,
-    onMinigameTestClick: (() -> Unit)? = null // Optional callback for minigame testing
+    onStartClick: () -> Unit
+    // rimosso onMinigameTestClick per pulizia
 ) {
     // Animazione pulsing per il testo
     val infiniteTransition = rememberInfiniteTransition(label = "pulse")
@@ -114,13 +113,6 @@ fun LandingScreen(
                     letterSpacing = 2.sp
                 )
             )
-            
-            if (onMinigameTestClick != null) {
-                Spacer(modifier = Modifier.height(32.dp))
-                Button(onClick = onMinigameTestClick) {
-                    Text("TEST MINIGAME")
-                }
-            }
         }
     }
 }

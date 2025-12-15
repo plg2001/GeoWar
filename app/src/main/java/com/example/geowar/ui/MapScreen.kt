@@ -4,6 +4,7 @@ import android.Manifest
 import android.annotation.SuppressLint
 import android.graphics.Bitmap
 import android.os.Looper
+import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.*
@@ -65,6 +66,10 @@ fun MapScreen(
     var hasPermission by remember { mutableStateOf(false) }
     var showLogoutDialog by remember { mutableStateOf(false) }
     var isFabMenuExpanded by remember { mutableStateOf(false) }
+    
+    // Stato per il Minigioco
+    var showMinigame by remember { mutableStateOf(false) }
+    var currentMinigameTarget by remember { mutableStateOf<String?>(null) }
     
     // Variabile per capire se è il primo posizionamento della camera
     var isFirstCameraMove by remember { mutableStateOf(true) }
@@ -180,6 +185,30 @@ fun MapScreen(
         }
     }
 
+    // SE IL MINIGIOCO E' ATTIVO, MOSTRA SOLO QUELLO A SCHERMO INTERO
+    if (showMinigame) {
+        MinigameScreen(
+            targetName = currentMinigameTarget ?: "TARGET",
+            onWin = {
+                // Se vinco il minigioco, chiamo l'API per conquistare il target
+                nearbyTarget?.let { target ->
+                    mapViewModel.conquerTarget(target.id)
+                }
+                
+                showMinigame = false
+                currentMinigameTarget = null
+                
+                // IMPORTANTE: Chiude il popup "TARGET RILEVATO" per evitare che riappaia subito
+                mapViewModel.clearNearbyTarget()
+            },
+            onLose = {
+                showMinigame = false
+                currentMinigameTarget = null
+            }
+        )
+        return // Esce dalla funzione per non renderizzare la mappa sotto
+    }
+
     Box(modifier = Modifier.fillMaxSize()) {
         if (playerPosition != null) {
             GoogleMap(
@@ -291,6 +320,10 @@ fun MapScreen(
             modifier = Modifier.align(Alignment.Center)
         ) {
             nearbyTarget?.let { target ->
+                val isEnemy = target.owner != team && target.owner != "NEUTRAL"
+                val buttonText = if (isEnemy) "HACK SYSTEM (AVVIA)" else "CONQUISTA (DIRETTA)"
+                val buttonColor = if (isEnemy) Color.Red else teamColor
+
                 Card(
                     colors = CardDefaults.cardColors(containerColor = Color.Black.copy(alpha = 0.9f)),
                     shape = RoundedCornerShape(16.dp),
@@ -332,16 +365,53 @@ fun MapScreen(
                             style = MaterialTheme.typography.headlineSmall
                         )
                         
+                        if (target.owner != "NEUTRAL" && target.owner != team) {
+                            Text(
+                                text = "PROPRIETA': ${target.owner}",
+                                color = Color.Red,
+                                fontWeight = FontWeight.Bold,
+                                modifier = Modifier.padding(top = 8.dp)
+                            )
+                        } else if (target.owner == "NEUTRAL") {
+                            Text(
+                                text = "PROPRIETA': NEUTRALE",
+                                color = Color.Yellow,
+                                fontWeight = FontWeight.Bold,
+                                modifier = Modifier.padding(top = 8.dp)
+                            )
+                        } else {
+                            Text(
+                                text = "PROPRIETA': TUO TEAM",
+                                color = Color.Green,
+                                fontWeight = FontWeight.Bold,
+                                modifier = Modifier.padding(top = 8.dp)
+                            )
+                        }
+                        
                         Spacer(modifier = Modifier.height(24.dp))
                         
-                        Button(
-                            onClick = { 
-                                // TODO: Avviare il minigioco
-                            },
-                            colors = ButtonDefaults.buttonColors(containerColor = teamColor),
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Text("Premi X per iniziare il minigioco", color = Color.Black, fontWeight = FontWeight.Bold)
+                        // Logica pulsante: Se già mio -> niente o rinforza. Se nemico -> Minigame. Se Neutro -> Conquista diretta (o minigame facile, per ora diretta)
+                        if (target.owner == team) {
+                            Text("Zona già sotto controllo.", color = Color.Green)
+                        } else {
+                            Button(
+                                onClick = { 
+                                    if (isEnemy) {
+                                        // Avvia minigioco solo se nemico
+                                        currentMinigameTarget = target.name
+                                        showMinigame = true
+                                    } else {
+                                        // Conquista diretta se neutrale (o logica placeholder)
+                                        Toast.makeText(context, "Target Neutrale Conquistato!", Toast.LENGTH_SHORT).show()
+                                        mapViewModel.conquerTarget(target.id) 
+                                        mapViewModel.clearNearbyTarget()
+                                    }
+                                },
+                                colors = ButtonDefaults.buttonColors(containerColor = buttonColor),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Text(buttonText, color = Color.Black, fontWeight = FontWeight.Bold)
+                            }
                         }
                     }
                 }

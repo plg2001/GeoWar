@@ -42,6 +42,7 @@ class MapViewModel(application: Application) : AndroidViewModel(application) {
     private var movementJob: Job? = null
     private var heartbeatJob: Job? = null
     private var playersFetcherJob: Job? = null
+    private var targetsPollingJob: Job? = null // Nuovo Job per aggiornare i target
     
     private val moveSpeed = 0.0001 // Circa 1m per tick (50ms)
 
@@ -49,7 +50,8 @@ class MapViewModel(application: Application) : AndroidViewModel(application) {
 
     init {
         loadAvatar()
-        loadTargets()
+        loadTargets() // Caricamento iniziale
+        startPollingTargets() // Avvio polling periodico
         startHeartbeat()
         startFetchingPlayers()
     }
@@ -72,6 +74,22 @@ class MapViewModel(application: Application) : AndroidViewModel(application) {
                 targets = ApiClient.authApi.getTargets()
             } catch (e: Exception) {
                 e.printStackTrace()
+            }
+        }
+    }
+    
+    private fun startPollingTargets() {
+        targetsPollingJob?.cancel()
+        targetsPollingJob = viewModelScope.launch {
+            while (isActive) {
+                try {
+                    // Ricarica la lista dei target dal server ogni 5 secondi
+                    // per aggiornare i colori se qualcuno li ha conquistati
+                    targets = ApiClient.authApi.getTargets()
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                }
+                delay(5000) 
             }
         }
     }
@@ -171,7 +189,8 @@ class MapViewModel(application: Application) : AndroidViewModel(application) {
         
         if (foundTarget != null) {
             nearbyTarget = foundTarget
-            hackTarget(foundTarget.id)
+            // RIMOSSO: hackTarget(foundTarget.id) -> L'hack automatico è stato rimosso
+            // Ora l'hack deve essere chiamato esplicitamente dopo il minigioco
         }
     }
     
@@ -179,12 +198,15 @@ class MapViewModel(application: Application) : AndroidViewModel(application) {
         nearbyTarget = null
     }
 
-    private fun hackTarget(targetId: Int) {
+    // Questa funzione ora viene chiamata dalla MapScreen solo dopo la vittoria del minigioco (o conquista diretta)
+    fun conquerTarget(targetId: Int) {
         viewModelScope.launch {
             val userId = userRepository.getUserId()
             if (userId != -1) {
                 try {
                     ApiClient.authApi.hackTarget(HackRequest(userId, targetId))
+                    // Ricarica immediatamente i target per aggiornare il colore sulla mappa
+                    loadTargets() 
                 } catch (e: Exception) {
                     e.printStackTrace()
                 }
@@ -214,5 +236,6 @@ class MapViewModel(application: Application) : AndroidViewModel(application) {
         movementJob?.cancel()
         heartbeatJob?.cancel()
         playersFetcherJob?.cancel()
+        targetsPollingJob?.cancel()
     }
 }
