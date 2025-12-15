@@ -16,6 +16,31 @@ android {
         versionName = "1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+        
+        // --- 16 KB PAGE SIZE COMPATIBILITY START ---
+        // Opzione 1 (Consigliata per NDK moderni e APK più grandi ma più veloci): 
+        // Forziamo le librerie native ad essere decompresse e allineate a 16KB.
+        // Questo richiede che le librerie .so stesse siano compilate con allineamento ELF 16KB,
+        // ma spesso per librerie di terze parti (come quelle Google) la soluzione più rapida lato consumer
+        // se non si ha controllo sul codice sorgente è assicurarsi che non siano compresse nell'APK
+        // e che zipalign faccia il suo dovere con l'allineamento corretto.
+        
+        // Tuttavia, il warning specifico "LOAD segments not aligned at 16 KB boundaries" 
+        // indica che il file .so stesso deve essere ricompilato o patchato, oppure si deve usare 
+        // l'opzione "useLegacyPackaging" che mantiene le librerie compresse nell'APK 
+        // e le estrae all'installazione, aggirando il problema dell'allineamento mmap diretto.
+        
+        // Opzione scelta: useLegacyPackaging = true
+        // Questo forza l'installazione delle librerie native sul disco invece di caricarle direttamente dall'APK,
+        // risolvendo il problema di allineamento per librerie di terze parti non ancora aggiornate.
+        // Nota: Aumenta lo spazio occupato su disco dall'app installata.
+        // ---------------------------------------------
+    }
+
+    packaging {
+        jniLibs {
+            useLegacyPackaging = true
+        }
     }
 
     buildTypes {
