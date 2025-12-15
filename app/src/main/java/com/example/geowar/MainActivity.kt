@@ -30,6 +30,7 @@ import com.example.geowar.data.ApiClient
 import com.example.geowar.data.auth.UserResponse
 import com.example.geowar.ui.LandingScreen
 import com.example.geowar.ui.MapScreen
+import com.example.geowar.ui.MinigameScreen
 import com.example.geowar.ui.TeamSelectionScreen
 import com.example.geowar.ui.admin.AdminScreen
 import com.example.geowar.ui.auth.AuthScreen
@@ -102,6 +103,9 @@ class MainActivity : ComponentActivity() {
                                     } else {
                                         navController.navigate("auth")
                                     }
+                                },
+                                onMinigameTestClick = {
+                                    navController.navigate("minigame")
                                 }
                             )
                         }
@@ -242,6 +246,22 @@ class MainActivity : ComponentActivity() {
                             AccountScreen(
                                 authApi = ApiClient.authApi,
                                 onBackClick = { navController.popBackStack() }
+                            )
+                        }
+                        
+                        // -------------------------
+                        // 7. Minigame Screen (Test)
+                        // -------------------------
+                        composable("minigame") {
+                            MinigameScreen(
+                                onWin = {
+                                    Toast.makeText(this@MainActivity, "HAI VINTO!", Toast.LENGTH_SHORT).show()
+                                    navController.popBackStack()
+                                },
+                                onLose = {
+                                    Toast.makeText(this@MainActivity, "HAI PERSO/USCITO!", Toast.LENGTH_SHORT).show()
+                                    navController.popBackStack()
+                                }
                             )
                         }
                     }
