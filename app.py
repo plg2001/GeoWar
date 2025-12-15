@@ -50,7 +50,7 @@ class User(db.Model):
     lon = db.Column(db.Float, default=0.0)
     last_active = db.Column(db.Float, default=0.0)
 
-    avatar_seed = db.Column(db.String(80))
+    avatar_seed = db.Column(db.String(80),default = "51d70032-0099-43b4-b2dd-5557")
     admin = db.Column(db.Boolean, default=False)
     banned = db.Column(db.Boolean, default=False)
 
@@ -501,6 +501,48 @@ def users_positions():
         "lon": u.lon,
         "team": u.team
     } for u in users]), 200
+
+
+
+# ----------- HAKERAGGIO -------------------------
+@app.route("/hack", methods=["POST"])
+def hack_target():
+    data = get_json()
+    if not data:
+        return jsonify({"message": "JSON non valido"}), 400
+
+    user_id = data.get("user_id")
+    target_id = data.get("target_id")
+
+    if not user_id or not target_id:
+        return jsonify({"message": "Dati mancanti (user_id, target_id)"}), 400
+
+    user = User.query.get(user_id)
+    target = Target.query.get(target_id)
+
+    if not user or user.banned:
+        return jsonify({"message": "Utente non valido"}), 403
+    if not target:
+        return jsonify({"message": "Target non trovato"}), 404
+    if not user.team:
+        return jsonify({"message": "Utente senza team"}), 400
+
+    log = HackLog(
+        user_id=user.id,
+        target_id=target.id,
+        team=user.team
+    )
+
+    # opzionale: cambio owner target
+    target.owner_team = user.team
+    target.last_hacked = time.time()
+
+    db.session.add(log)
+    err = db_commit_or_500()
+    if err:
+        return err
+
+    return jsonify({"message": "Hack registrato"}), 200
 
 
 if __name__ == "__main__":
