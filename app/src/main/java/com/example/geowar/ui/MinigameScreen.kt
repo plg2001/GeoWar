@@ -9,6 +9,7 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -17,6 +18,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Button
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -45,32 +47,23 @@ fun MinigameScreen(
     var progress by remember { mutableFloatStateOf(0f) }
     var isRunning by remember { mutableStateOf(true) }
     
-    // Constants
+    // Difficulty Settings
+    var sensitivity by remember { mutableFloatStateOf(1.5f) } 
+    val friction = 0.95f
     val ballRadius = 20.dp
     val targetRadius = 60.dp
-    val friction = 0.95f
-    val sensitivity = 1.5f 
 
-    DisposableEffect(Unit) {
+    DisposableEffect(sensitivity) {
         val listener = object : SensorEventListener {
             override fun onSensorChanged(event: SensorEvent?) {
                 if (event != null && isRunning) {
                     // event.values[0] = x force (sideways)
                     // event.values[1] = y force (longitudinal)
                     
-                    // Screen coordinates: +x right, +y down.
-                    // Tilt phone right (right side down) -> x sensor < 0? 
-                    // Standard: +x is right. Gravity on x when tilted right is negative (gravity points left relative to phone).
-                    // Actually, if I tilt right side down, gravity vector has a component pointing to +x of the phone.
-                    // So sensor x becomes negative (acceleration = forces - gravity, if stationary, acc = -g). 
-                    // Let's rely on testing or standard behavior:
-                    // usually -x moves ball left, +x moves ball right.
-                    // sensor x is positive when device left side is down. (Gravity pulls right).
-                    
                     val ax = -event.values[0] 
                     val ay = event.values[1] 
 
-                    // Update velocity
+                    // Update velocity using dynamic sensitivity
                     velocity += Offset(ax * sensitivity, ay * sensitivity)
                 }
             }
@@ -96,8 +89,7 @@ fun MinigameScreen(
             // Apply Friction
             velocity *= friction
             
-            // Bounds check (soft bounce or clamp) - let's just clamp for now to 300px roughly
-            // Ideally we need canvas size. For now assume reasonable bounds.
+            // Bounds check (soft bounce or clamp)
             val maxDist = 400f
             if (ballPosition.x < -maxDist) { ballPosition = ballPosition.copy(x = -maxDist); velocity = velocity.copy(x = -velocity.x * 0.5f) }
             if (ballPosition.x > maxDist) { ballPosition = ballPosition.copy(x = maxDist); velocity = velocity.copy(x = -velocity.x * 0.5f) }
@@ -139,6 +131,18 @@ fun MinigameScreen(
         
         Spacer(modifier = Modifier.height(20.dp))
         
+        // Difficulty Slider
+        Text("Sensibilità Accelerometro: ${String.format("%.1f", sensitivity)}", color = Color.Yellow)
+        Slider(
+            value = sensitivity,
+            onValueChange = { sensitivity = it },
+            valueRange = 0.5f..5.0f,
+            steps = 9,
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp)
+        )
+
+        Spacer(modifier = Modifier.height(10.dp))
+
         LinearProgressIndicator(
             progress = { progress },
             modifier = Modifier.fillMaxWidth().height(20.dp),
