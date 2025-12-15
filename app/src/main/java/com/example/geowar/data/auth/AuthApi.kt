@@ -52,4 +52,8 @@ interface AuthApi {
     // NUOVO: Ottenere posizioni giocatori attivi
     @GET("/users_positions")
     suspend fun getUsersPositions(): List<UserResponse>
+
+    // NUOVO: Hacking
+    @POST("/hack")
+    suspend fun hackTarget(@Body request: HackRequest): GenericResponse
 }

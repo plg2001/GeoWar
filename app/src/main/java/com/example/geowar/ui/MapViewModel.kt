@@ -8,6 +8,7 @@ import androidx.compose.runtime.setValue
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.geowar.data.auth.ApiClient
+import com.example.geowar.data.auth.HackRequest
 import com.example.geowar.data.auth.TargetResponse
 import com.example.geowar.data.auth.UpdatePositionRequest
 import com.example.geowar.data.auth.UserResponse
@@ -165,11 +166,28 @@ class MapViewModel(application: Application) : AndroidViewModel(application) {
                 break // Trovato uno, usciamo
             }
         }
-        nearbyTarget = foundTarget
+        
+        if (foundTarget != null) {
+            nearbyTarget = foundTarget
+            hackTarget(foundTarget.id)
+        }
     }
     
     fun clearNearbyTarget() {
         nearbyTarget = null
+    }
+
+    private fun hackTarget(targetId: Int) {
+        viewModelScope.launch {
+            val userId = userRepository.getUserId()
+            if (userId != -1) {
+                try {
+                    ApiClient.authApi.hackTarget(HackRequest(userId, targetId))
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                }
+            }
+        }
     }
 
     override fun onCleared() {
