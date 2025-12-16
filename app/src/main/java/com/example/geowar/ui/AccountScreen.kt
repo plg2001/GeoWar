@@ -92,7 +92,7 @@ fun AccountScreen(
             CenterAlignedTopAppBar(
                 title = {
                     Text(
-                        "PROFILO UTENTE",
+                        "USER PROFILE",
                         style = MaterialTheme.typography.titleLarge.copy(
                             fontWeight = FontWeight.Bold,
                             letterSpacing = 2.sp
@@ -104,7 +104,7 @@ fun AccountScreen(
                     IconButton(onClick = onBackClick) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Torna indietro",
+                            contentDescription = "Go back",
                             tint = neonBlue
                         )
                     }
@@ -136,7 +136,7 @@ fun AccountScreen(
                 ) {
                     AsyncImage(
                         model = "https://api.dicebear.com/7.x/pixel-art/png?seed=${avatarSeed ?: ""}",
-                        contentDescription = "Foto Profilo",
+                        contentDescription = "Profile Picture",
                         modifier = Modifier.fillMaxSize(),
                         contentScale = ContentScale.Crop,
                         placeholder = painterResource(id = R.drawable.ic_launcher_background)
@@ -148,7 +148,7 @@ fun AccountScreen(
                             .background(surfaceColor, CircleShape)
                             .border(1.dp, neonBlue, CircleShape)
                     ) {
-                        Icon(Icons.Default.Edit, contentDescription = "Modifica foto", tint = neonBlue)
+                        Icon(Icons.Default.Edit, contentDescription = "Edit photo", tint = neonBlue)
                     }
                 }
 
@@ -156,7 +156,7 @@ fun AccountScreen(
 
                 // --- SEZIONE DATI UTENTE ---
                 Text(
-                    "MODIFICA DATI",
+                    "EDIT DATA",
                     style = MaterialTheme.typography.titleMedium,
                     color = neonBlue,
                     letterSpacing = 1.sp
@@ -183,13 +183,13 @@ fun AccountScreen(
 
                 // --- SEZIONE AVATAR DICEBAR ---
                 Text(
-                    "AVATAR DI GIOCO",
+                    "GAME AVATAR",
                     style = MaterialTheme.typography.titleMedium,
                     color = neonPink,
                     letterSpacing = 1.sp
                 )
                 Text(
-                    "Questo avatar sarà visibile agli altri giocatori sulla mappa.",
+                    "This avatar will be visible to other players on the map.",
                     fontSize = 12.sp,
                     color = Color.Gray,
                     textAlign = TextAlign.Center,
@@ -220,7 +220,7 @@ fun AccountScreen(
                     colors = ButtonDefaults.buttonColors(containerColor = neonPink),
                     border = BorderStroke(1.dp, neonPink.copy(alpha = 0.7f))
                 ) {
-                    Text("GENERA NUOVO AVATAR", fontWeight = FontWeight.Bold)
+                    Text("GENERATE NEW AVATAR", fontWeight = FontWeight.Bold)
                 }
 
                 Spacer(modifier = Modifier.weight(1f))
@@ -229,7 +229,7 @@ fun AccountScreen(
                 Button(
                     onClick = {
                         accountViewModel.saveChanges {
-                            Toast.makeText(context, "Profilo aggiornato!", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(context, "Profile updated!", Toast.LENGTH_SHORT).show()
                             onBackClick()
                         }
                     },
@@ -245,7 +245,7 @@ fun AccountScreen(
                     } else {
                         Icon(Icons.Default.Save, contentDescription = null, tint = Color.Black)
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text("SALVA MODIFICHE", color = Color.Black, fontWeight = FontWeight.Bold)
+                        Text("SAVE CHANGES", color = Color.Black, fontWeight = FontWeight.Bold)
                     }
                 }
             }

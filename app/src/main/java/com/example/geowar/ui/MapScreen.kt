@@ -72,7 +72,7 @@ fun MapScreen(
     var showMinigame by remember { mutableStateOf(false) }
     var currentMinigameTargetName by remember { mutableStateOf<String?>(null) }
     // Colore target per il minigioco "Trova il Colore"
-    var currentMinigameColor by remember { mutableStateOf<String>("ROSSO") }
+    var currentMinigameColor by remember { mutableStateOf<String>("RED") }
     
     // Variabile per capire se è il primo posizionamento della camera
     var isFirstCameraMove by remember { mutableStateOf(true) }
@@ -185,17 +185,6 @@ fun MapScreen(
 
     // SE IL MINIGIOCO E' ATTIVO, MOSTRA SOLO QUELLO A SCHERMO INTERO
     if (showMinigame) {
-        // Se è neutro usiamo ColorMinigameScreen, altrimenti (nemico) usiamo MinigameScreen (vecchio accelerometro)
-        // Per ora la richiesta è su target NEUTRO -> ColorMinigameScreen.
-        // Ma potremmo voler usare ColorMinigameScreen per TUTTI se richiesto, o differenziare.
-        // La richiesta dice: "implementare questo gioco quando ci si avvicina ad un target NEUTRO".
-        
-        // Se il target è NEUTRO, usiamo ColorMinigameScreen. Se è NEMICO, rimaniamo col vecchio per ora o usiamo questo?
-        // Assumo: Neutro -> Color Game. Nemico -> Accelerometer Game (MinigameScreen originale).
-        
-        // Verifichiamo il tipo di minigioco basato sul contesto che ha lanciato showMinigame
-        // Ma showMinigame è solo booleano. Possiamo dedurlo da nearbyTarget se non nullo.
-        
         val isNeutralTarget = nearbyTarget?.owner == "NEUTRAL"
         
         if (isNeutralTarget) {
@@ -208,7 +197,7 @@ fun MapScreen(
                     showMinigame = false
                     currentMinigameTargetName = null
                     mapViewModel.clearNearbyTarget()
-                    Toast.makeText(context, "TARGET NEUTRALE CONQUISTATO!", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(context, "NEUTRAL TARGET CONQUERED!", Toast.LENGTH_SHORT).show()
                 },
                 onLose = {
                     showMinigame = false
@@ -216,7 +205,7 @@ fun MapScreen(
                 }
             )
         } else {
-             // Vecchio minigioco per i nemici (o placeholder)
+             // Vecchio minigioco per i nemici
              MinigameScreen(
                 targetName = currentMinigameTargetName ?: "TARGET",
                 onWin = {
@@ -226,7 +215,7 @@ fun MapScreen(
                     showMinigame = false
                     currentMinigameTargetName = null
                     mapViewModel.clearNearbyTarget()
-                    Toast.makeText(context, "HACK COMPLETATO!", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(context, "HACK COMPLETED!", Toast.LENGTH_SHORT).show()
                 },
                 onLose = {
                     showMinigame = false
@@ -308,7 +297,7 @@ fun MapScreen(
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     CircularProgressIndicator()
                     Spacer(modifier = Modifier.height(16.dp))
-                    Text("In attesa del segnale GPS...", color = Color.White)
+                    Text("Waiting for GPS signal...", color = Color.White)
                 }
             }
         }
@@ -323,7 +312,7 @@ fun MapScreen(
         ) {
             Card(colors = CardDefaults.cardColors(containerColor = Color.Black.copy(alpha = 0.8f))) {
                 Text(
-                    text = "OPERATORE: TEAM $team",
+                    text = "OPERATOR: TEAM $team",
                     color = teamColor,
                     fontWeight = FontWeight.Bold,
                     modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
@@ -354,9 +343,9 @@ fun MapScreen(
 
                 // Testo e colore pulsante
                 val buttonText = when {
-                    isNeutral -> "AVVIA RICERCA COLORE"
-                    isEnemy -> "HACK SYSTEM (AVVIA)"
-                    else -> "ZONA SICURA"
+                    isNeutral -> "START COLOR SCAN"
+                    isEnemy -> "HACK SYSTEM (START)"
+                    else -> "SECURE ZONE"
                 }
                 
                 val buttonColor = when {
@@ -379,7 +368,7 @@ fun MapScreen(
                         // Header con pulsante chiusura
                         Box(modifier = Modifier.fillMaxWidth()) {
                             Text(
-                                text = "TARGET RILEVATO",
+                                text = "TARGET DETECTED",
                                 color = if (isNeutral) Color.Yellow else if (isEnemy) Color.Red else Color.Green,
                                 fontWeight = FontWeight.Bold,
                                 style = MaterialTheme.typography.titleLarge,
@@ -389,14 +378,14 @@ fun MapScreen(
                                 onClick = { mapViewModel.clearNearbyTarget() },
                                 modifier = Modifier.align(Alignment.CenterEnd)
                             ) {
-                                Icon(Icons.Default.Close, contentDescription = "Chiudi", tint = Color.White)
+                                Icon(Icons.Default.Close, contentDescription = "Close", tint = Color.White)
                             }
                         }
                         
                         Spacer(modifier = Modifier.height(16.dp))
                         
                         Text(
-                            text = "Sei entrato nello spazio conteso di:",
+                            text = "You entered the contested zone of:",
                             color = Color.White
                         )
                         Text(
@@ -408,27 +397,27 @@ fun MapScreen(
                         
                         if (isEnemy) {
                             Text(
-                                text = "PROPRIETA': ${target.owner}",
+                                text = "OWNER: ${target.owner}",
                                 color = Color.Red,
                                 fontWeight = FontWeight.Bold,
                                 modifier = Modifier.padding(top = 8.dp)
                             )
                         } else if (isNeutral) {
                             Text(
-                                text = "PROPRIETA': NEUTRALE",
+                                text = "OWNER: NEUTRAL",
                                 color = Color.Yellow,
                                 fontWeight = FontWeight.Bold,
                                 modifier = Modifier.padding(top = 8.dp)
                             )
                             Text(
-                                text = "Trova il colore richiesto per conquistare!",
+                                text = "Find the requested color to conquer!",
                                 color = Color.LightGray,
                                 style = MaterialTheme.typography.bodySmall,
                                 modifier = Modifier.padding(top = 4.dp)
                             )
                         } else {
                             Text(
-                                text = "PROPRIETA': TUO TEAM",
+                                text = "OWNER: YOUR TEAM",
                                 color = Color.Green,
                                 fontWeight = FontWeight.Bold,
                                 modifier = Modifier.padding(top = 8.dp)
@@ -439,13 +428,13 @@ fun MapScreen(
                         
                         // Logica pulsante
                         if (isOwned) {
-                            Text("Zona già sotto controllo.", color = Color.Green)
+                            Text("Zone already under control.", color = Color.Green)
                         } else {
                             Button(
                                 onClick = { 
                                     if (isNeutral) {
                                         // Avvia minigioco colore per Neutrali
-                                        val colors = listOf("ROSSO", "VERDE", "BLU")
+                                        val colors = listOf("RED", "GREEN", "BLUE")
                                         currentMinigameColor = colors[Random.nextInt(colors.size)]
                                         currentMinigameTargetName = target.name
                                         showMinigame = true
@@ -495,7 +484,7 @@ fun MapScreen(
                 ) {
                     Column(verticalArrangement = Arrangement.spacedBy(24.dp)) {
                         FabAction(icon = Icons.Default.AccountCircle, label = "Account", onClick = onAccountClick)
-                        FabAction(icon = Icons.Default.MyLocation, label = "Centra") {
+                        FabAction(icon = Icons.Default.MyLocation, label = "Center") {
                             playerPosition?.let {
                                 coroutineScope.launch {
                                     cameraPositionState.animate(CameraUpdateFactory.newLatLngZoom(it, 20f), 500)
@@ -509,7 +498,7 @@ fun MapScreen(
                     containerColor = MaterialTheme.colorScheme.primary,
                     contentColor = MaterialTheme.colorScheme.onPrimary,
                 ) {
-                    Icon(Icons.Default.Add, "Apri menu azioni", modifier = Modifier.rotate(rotation))
+                    Icon(Icons.Default.Add, "Open actions menu", modifier = Modifier.rotate(rotation))
                 }
             }
         }
@@ -517,12 +506,12 @@ fun MapScreen(
         if (showLogoutDialog) {
             AlertDialog(
                 onDismissRequest = { showLogoutDialog = false },
-                title = { Text("Abbandonare la partita?") },
-                text = { Text("Sei sicuro di voler uscire e tornare al menu principale?") },
+                title = { Text("Leave the game?") },
+                text = { Text("Are you sure you want to exit and return to the main menu?") },
                 confirmButton = {
-                    Button(onClick = { showLogoutDialog = false; onLogout() }, colors = ButtonDefaults.buttonColors(containerColor = Color.Red)) { Text("Abbandona") }
+                    Button(onClick = { showLogoutDialog = false; onLogout() }, colors = ButtonDefaults.buttonColors(containerColor = Color.Red)) { Text("Leave") }
                 },
-                dismissButton = { TextButton({ showLogoutDialog = false }) { Text("Annulla") } }
+                dismissButton = { TextButton({ showLogoutDialog = false }) { Text("Cancel") } }
             )
         }
     }

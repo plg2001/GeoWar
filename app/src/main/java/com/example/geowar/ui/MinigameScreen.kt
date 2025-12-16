@@ -46,7 +46,7 @@ import kotlinx.coroutines.delay
 
 @Composable
 fun MinigameScreen(
-    targetName: String = "TARGET SCONOSCIUTO", // Nome del target (default per test)
+    targetName: String = "UNKNOWN TARGET",
     onWin: () -> Unit,
     onLose: () -> Unit
 ) {
@@ -138,14 +138,14 @@ fun MinigameScreen(
                 .padding(16.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Text("DISINNESCA LA BOMBA!", color = Color.Red, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+            Text("DEFUSE THE BOMB!", color = Color.Red, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
             Text("Target: $targetName", color = Color.LightGray, style = MaterialTheme.typography.bodyMedium)
-            Text("Tieni la pallina nel cerchio blu", color = Color.White)
+            Text("Keep the ball inside the blue circle", color = Color.White)
             
             Spacer(modifier = Modifier.height(20.dp))
             
             // Difficulty Slider
-            Text("Sensibilità Accelerometro: ${String.format("%.1f", sensitivity)}", color = Color.Yellow)
+            Text("Accelerometer Sensitivity: ${String.format("%.1f", sensitivity)}", color = Color.Yellow)
             Slider(
                 value = sensitivity,
                 onValueChange = { sensitivity = it },
@@ -208,7 +208,7 @@ fun MinigameScreen(
             }
             
             Button(onClick = onLose) { 
-                Text("Arrenditi (Esci)")
+                Text("Give Up (Exit)")
             }
         }
 
@@ -244,7 +244,7 @@ fun MinigameScreen(
                             )
                             Spacer(modifier = Modifier.size(8.dp))
                             Text(
-                                text = "HACK COMPLETATO!",
+                                text = "HACK COMPLETED!",
                                 color = Color.Green,
                                 fontWeight = FontWeight.Bold,
                                 style = MaterialTheme.typography.titleLarge
@@ -255,7 +255,7 @@ fun MinigameScreen(
                     Spacer(modifier = Modifier.height(16.dp))
                     
                     Text(
-                        text = "Hai conquistato il target:",
+                        text = "You conquered the target:",
                         color = Color.White
                     )
                     Text(
@@ -268,7 +268,7 @@ fun MinigameScreen(
                     Spacer(modifier = Modifier.height(16.dp))
                     
                     Text(
-                        text = "Ottimo lavoro agente. La zona è ora sotto il controllo del tuo team.",
+                        text = "Great job agent. The zone is now under your team's control.",
                         color = Color.LightGray,
                         style = MaterialTheme.typography.bodyMedium
                     )
@@ -280,7 +280,7 @@ fun MinigameScreen(
                         colors = ButtonDefaults.buttonColors(containerColor = Color.Green),
                         modifier = Modifier.fillMaxWidth()
                     ) {
-                        Text("RITORNA ALLA MAPPA", color = Color.Black, fontWeight = FontWeight.Bold)
+                        Text("RETURN TO MAP", color = Color.Black, fontWeight = FontWeight.Bold)
                     }
                 }
             }

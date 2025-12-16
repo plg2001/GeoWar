@@ -36,7 +36,7 @@ import java.util.concurrent.Executors
 
 @Composable
 fun ColorMinigameScreen(
-    targetColorName: String = "ROSSO", // ROSSO, VERDE, BLU
+    targetColorName: String = "RED", // RED, GREEN, BLUE
     onWin: () -> Unit,
     onLose: () -> Unit
 ) {
@@ -69,9 +69,9 @@ fun ColorMinigameScreen(
         ColorMinigameContent(targetColorName, onWin, onLose)
     } else {
         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            Text("Permesso fotocamera necessario per questo minigioco.", color = Color.White)
+            Text("Camera permission required for this minigame.", color = Color.White)
             Button(onClick = onLose) {
-                Text("Esci")
+                Text("Exit")
             }
         }
     }
@@ -93,18 +93,21 @@ fun ColorMinigameContent(
     // Mapping nome -> Hue range (approssimativo)
     val targetHueRange = remember(targetColorName) {
         when (targetColorName.uppercase()) {
-            "ROSSO" -> listOf(0f..20f, 330f..360f)
-            "VERDE" -> listOf(70f..170f)
-            "BLU" -> listOf(190f..270f)
+            "RED" -> listOf(0f..20f, 330f..360f)
+            "GREEN" -> listOf(70f..170f)
+            "BLUE" -> listOf(190f..270f)
+            "ROSSO" -> listOf(0f..20f, 330f..360f) // Legacy fallback
+            "VERDE" -> listOf(70f..170f) // Legacy fallback
+            "BLU" -> listOf(190f..270f) // Legacy fallback
             else -> listOf(0f..360f)
         }
     }
     
     val targetUiColor = remember(targetColorName) {
         when (targetColorName.uppercase()) {
-            "ROSSO" -> Color.Red
-            "VERDE" -> Color.Green
-            "BLU" -> Color.Blue
+            "RED", "ROSSO" -> Color.Red
+            "GREEN", "VERDE" -> Color.Green
+            "BLUE", "BLU" -> Color.Blue
             else -> Color.White
         }
     }
@@ -193,7 +196,7 @@ fun ColorMinigameContent(
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Text(
-                text = "TROVA IL COLORE: $targetColorName",
+                text = "FIND THE COLOR: $targetColorName",
                 style = MaterialTheme.typography.headlineMedium,
                 color = targetUiColor,
                 fontWeight = FontWeight.Bold,
@@ -231,7 +234,7 @@ fun ColorMinigameContent(
                 onClick = onLose,
                 colors = ButtonDefaults.buttonColors(containerColor = Color.Red.copy(alpha = 0.8f))
             ) {
-                Text("Esci")
+                Text("Exit")
             }
         }
         
@@ -267,7 +270,7 @@ fun ColorMinigameContent(
                             )
                             Spacer(modifier = Modifier.size(8.dp))
                             Text(
-                                text = "HACK COMPLETATO!",
+                                text = "HACK COMPLETED!",
                                 color = Color.Green,
                                 fontWeight = FontWeight.Bold,
                                 style = MaterialTheme.typography.titleLarge
@@ -278,7 +281,7 @@ fun ColorMinigameContent(
                     Spacer(modifier = Modifier.height(16.dp))
                     
                     Text(
-                        text = "Hai identificato il colore:",
+                        text = "Color identified:",
                         color = Color.White
                     )
                     Text(
@@ -291,7 +294,7 @@ fun ColorMinigameContent(
                     Spacer(modifier = Modifier.height(16.dp))
                     
                     Text(
-                        text = "Analisi completata. Il target è stato acquisito.",
+                        text = "Scan complete. Target acquired.",
                         color = Color.LightGray,
                         style = MaterialTheme.typography.bodyMedium
                     )
@@ -303,7 +306,7 @@ fun ColorMinigameContent(
                         colors = ButtonDefaults.buttonColors(containerColor = Color.Green),
                         modifier = Modifier.fillMaxWidth()
                     ) {
-                        Text("RITORNA ALLA MAPPA", color = Color.Black, fontWeight = FontWeight.Bold)
+                        Text("RETURN TO MAP", color = Color.Black, fontWeight = FontWeight.Bold)
                     }
                 }
             }
