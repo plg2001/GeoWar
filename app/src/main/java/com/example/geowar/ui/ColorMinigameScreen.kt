@@ -242,35 +242,68 @@ fun ColorMinigameContent(
             exit = scaleOut(),
             modifier = Modifier.align(Alignment.Center)
         ) {
-             Card(
+            Card(
                 colors = CardDefaults.cardColors(containerColor = Color.Black.copy(alpha = 0.9f)),
                 shape = RoundedCornerShape(16.dp),
                 modifier = Modifier
                     .padding(32.dp)
                     .fillMaxWidth()
             ) {
-                 Column(
+                Column(
                     modifier = Modifier.padding(16.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    Icon(
-                        imageVector = Icons.Default.CheckCircle,
-                        contentDescription = null,
-                        tint = Color.Green,
-                        modifier = Modifier.size(48.dp)
-                    )
+                    // Header
+                    Box(modifier = Modifier.fillMaxWidth()) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.align(Alignment.Center)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.CheckCircle,
+                                contentDescription = null,
+                                tint = Color.Green,
+                                modifier = Modifier.size(28.dp)
+                            )
+                            Spacer(modifier = Modifier.size(8.dp))
+                            Text(
+                                text = "HACK COMPLETATO!",
+                                color = Color.Green,
+                                fontWeight = FontWeight.Bold,
+                                style = MaterialTheme.typography.titleLarge
+                            )
+                        }
+                    }
+                    
                     Spacer(modifier = Modifier.height(16.dp))
+                    
                     Text(
-                        text = "COLORE TROVATO!",
-                        color = Color.White,
-                        style = MaterialTheme.typography.titleLarge
+                        text = "Hai identificato il colore:",
+                        color = Color.White
                     )
+                    Text(
+                        text = targetColorName,
+                        color = targetUiColor,
+                        fontWeight = FontWeight.Bold,
+                        style = MaterialTheme.typography.headlineSmall
+                    )
+                    
                     Spacer(modifier = Modifier.height(16.dp))
+                    
+                    Text(
+                        text = "Analisi completata. Il target è stato acquisito.",
+                        color = Color.LightGray,
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+
+                    Spacer(modifier = Modifier.height(24.dp))
+                    
                     Button(
                         onClick = onWin,
-                        colors = ButtonDefaults.buttonColors(containerColor = Color.Green)
+                        colors = ButtonDefaults.buttonColors(containerColor = Color.Green),
+                        modifier = Modifier.fillMaxWidth()
                     ) {
-                        Text("Continua", color = Color.Black)
+                        Text("RITORNA ALLA MAPPA", color = Color.Black, fontWeight = FontWeight.Bold)
                     }
                 }
             }

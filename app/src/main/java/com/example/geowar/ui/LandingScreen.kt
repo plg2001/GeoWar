@@ -15,8 +15,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.LocationOn
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -34,7 +32,7 @@ import androidx.compose.ui.unit.sp
 @Composable
 fun LandingScreen(
     onStartClick: () -> Unit,
-    onTestMinigameClick: () -> Unit
+    onTestMinigameClick: () -> Unit // Mantenuto per compatibilità ma il pulsante viene rimosso
 ) {
     // Animazione pulsing per il testo
     val infiniteTransition = rememberInfiniteTransition(label = "pulse")
@@ -87,7 +85,7 @@ fun LandingScreen(
 
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
 
-            // Logo del gioco (Uso Icona Vettoriale sicura anti-crash)
+            // Logo del gioco
             Icon(
                 imageVector = Icons.Default.LocationOn,
                 contentDescription = "GeoWar Logo",
@@ -115,15 +113,8 @@ fun LandingScreen(
                     letterSpacing = 2.sp
                 )
             )
-
-            Spacer(modifier = Modifier.height(48.dp))
-
-            Button(
-                onClick = { onTestMinigameClick() },
-                colors = ButtonDefaults.buttonColors(containerColor = Color.Magenta.copy(alpha = 0.5f))
-            ) {
-                Text("Test Minigioco Colore")
-            }
+            
+            // Pulsante di test rimosso come richiesto
         }
     }
 }
