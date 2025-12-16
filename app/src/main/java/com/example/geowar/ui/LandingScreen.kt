@@ -15,6 +15,8 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.LocationOn
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -25,14 +27,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.tooling.preview.Preview // Import necessario
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
 @Composable
 fun LandingScreen(
-    onStartClick: () -> Unit
-    // rimosso onMinigameTestClick per pulizia
+    onStartClick: () -> Unit,
+    onTestMinigameClick: () -> Unit
 ) {
     // Animazione pulsing per il testo
     val infiniteTransition = rememberInfiniteTransition(label = "pulse")
@@ -113,25 +115,28 @@ fun LandingScreen(
                     letterSpacing = 2.sp
                 )
             )
+
+            Spacer(modifier = Modifier.height(48.dp))
+
+            Button(
+                onClick = { onTestMinigameClick() },
+                colors = ButtonDefaults.buttonColors(containerColor = Color.Magenta.copy(alpha = 0.5f))
+            ) {
+                Text("Test Minigioco Colore")
+            }
         }
     }
 }
 
-// -----------------------------------------------------------
-// AGGIUNGI QUESTO PER LA PREVIEW
-// -----------------------------------------------------------
-
 @Preview(
     showBackground = true,
     name = "Landing Screen Preview",
-    device = "id:pixel_5" // Mostra la preview con le dimensioni di un Pixel 5
+    device = "id:pixel_5"
 )
 @Composable
 fun LandingScreenPreview() {
     LandingScreen(
-        onStartClick = {
-            // Simuliamo il click in preview (stampa nei log se usi Interactive Mode)
-            println("Start clicked in Preview")
-        }
+        onStartClick = {},
+        onTestMinigameClick = {}
     )
 }

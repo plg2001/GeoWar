@@ -15,12 +15,10 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.credentials.Credential
 import androidx.credentials.CredentialManager
 import androidx.credentials.CustomCredential
 import androidx.credentials.GetCredentialRequest
 import androidx.credentials.exceptions.GetCredentialException
-import androidx.credentials.exceptions.NoCredentialException
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.compose.NavHost
@@ -31,6 +29,7 @@ import com.example.geowar.data.auth.UserResponse
 import com.example.geowar.ui.LandingScreen
 import com.example.geowar.ui.MapScreen
 import com.example.geowar.ui.MinigameScreen
+import com.example.geowar.ui.ColorMinigameScreen
 import com.example.geowar.ui.TeamSelectionScreen
 import com.example.geowar.ui.admin.AdminScreen
 import com.example.geowar.ui.auth.AuthScreen
@@ -38,14 +37,14 @@ import com.example.geowar.ui.auth.AuthViewModel
 import com.example.geowar.ui.theme.GeoWarTheme
 import com.google.android.libraries.identity.googleid.GetGoogleIdOption
 import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
-import com.google.android.libraries.identity.googleid.GoogleIdTokenParsingException
-import kotlinx.coroutines.launch
 import androidx.core.content.edit
 import com.example.geowar.ui.AccountScreen
 import java.util.UUID
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
+import kotlinx.coroutines.launch
+import kotlin.random.Random
 
 const val PREFS_NAME = "geowar_prefs"
 const val PREF_USER_ID = "USER_ID"
@@ -103,6 +102,9 @@ class MainActivity : ComponentActivity() {
                                     } else {
                                         navController.navigate("auth")
                                     }
+                                },
+                                onTestMinigameClick = {
+                                    navController.navigate("color_minigame")
                                 }
                             )
                         }
@@ -247,7 +249,7 @@ class MainActivity : ComponentActivity() {
                         }
                         
                         // -------------------------
-                        // 7. Minigame Screen (Test)
+                        // 7. Accelerometer Minigame Screen (Old)
                         // -------------------------
                         composable("minigame") {
                             MinigameScreen(
@@ -257,6 +259,28 @@ class MainActivity : ComponentActivity() {
                                 },
                                 onLose = {
                                     Toast.makeText(this@MainActivity, "HAI PERSO/USCITO!", Toast.LENGTH_SHORT).show()
+                                    navController.popBackStack()
+                                }
+                            )
+                        }
+                        
+                        // -------------------------
+                        // 8. Color Minigame Screen (New)
+                        // -------------------------
+                        composable("color_minigame") {
+                            // Seleziona un colore casuale tra ROSSO, VERDE, BLU
+                            val randomColor = remember {
+                                val colors = listOf("ROSSO", "VERDE", "BLU")
+                                colors[Random.nextInt(colors.size)]
+                            }
+
+                            ColorMinigameScreen(
+                                targetColorName = randomColor, 
+                                onWin = {
+                                    Toast.makeText(this@MainActivity, "COLORE TROVATO!", Toast.LENGTH_SHORT).show()
+                                    navController.popBackStack()
+                                },
+                                onLose = {
                                     navController.popBackStack()
                                 }
                             )
@@ -272,6 +296,35 @@ class MainActivity : ComponentActivity() {
     //                GOOGLE SIGN-IN FUNCTIONS
     // =====================================================
 
+    private fun signInWithGoogle(onSuccess: (String) -> Unit) {
+         val request = buildSignInRequest()
+
+         lifecycleScope.launch {
+             try {
+                 val result = credentialManager.getCredential(
+                     request = request,
+                     context = this@MainActivity
+                 )
+                 val credential = result.credential
+                 
+                 // Google ID Token Credential
+                 if (credential is CustomCredential && 
+                     credential.type == GoogleIdTokenCredential.TYPE_GOOGLE_ID_TOKEN_CREDENTIAL) {
+                     
+                     val googleIdTokenCredential = GoogleIdTokenCredential.createFrom(credential.data)
+                     onSuccess(googleIdTokenCredential.idToken)
+                 } else {
+                     Log.e("Auth", "Unexpected credential type")
+                 }
+
+             } catch (e: GetCredentialException) {
+                 Log.e("Auth", "GetCredentialException", e)
+             } catch (e: Exception) {
+                 Log.e("Auth", "Login failed", e)
+             }
+         }
+    }
+
     private fun buildSignInRequest(): GetCredentialRequest {
         val googleIdOption = GetGoogleIdOption.Builder()
             .setFilterByAuthorizedAccounts(false)
@@ -279,62 +332,9 @@ class MainActivity : ComponentActivity() {
             .setAutoSelectEnabled(false)
             .setNonce(UUID.randomUUID().toString())
             .build()
-
+            
         return GetCredentialRequest.Builder()
             .addCredentialOption(googleIdOption)
             .build()
-    }
-
-    private fun signInWithGoogle(onSuccess: (String) -> Unit) {
-        val request = buildSignInRequest()
-
-        lifecycleScope.launch {
-            try {
-                val result = credentialManager.getCredential(
-                    context = this@MainActivity,
-                    request = request
-                )
-
-                handleGoogleCredential(result.credential, onSuccess)
-
-            } catch (e: NoCredentialException) {
-                Log.e("GOOGLE_SIGN_IN", "No credentials available", e)
-                Toast.makeText(this@MainActivity, "Errore config: controlla SHA-1 o aggiungi account Google", Toast.LENGTH_LONG).show()
-            } catch (e: GetCredentialException) {
-                Log.e("GOOGLE_SIGN_IN", "Sign-in cancelled or failed", e)
-                Toast.makeText(this@MainActivity, "Accesso annullato", Toast.LENGTH_SHORT).show()
-            } catch (e: Exception) {
-                e.printStackTrace()
-                Log.e("GOOGLE_SIGN_IN", "Generic Exception: ${e.message}", e)
-                Toast.makeText(this@MainActivity, "Errore generico Sign-In", Toast.LENGTH_SHORT).show()
-            }
-        }
-    }
-
-    private fun handleGoogleCredential(credential: Credential, onSuccess: (String) -> Unit) {
-        when (credential) {
-            is GoogleIdTokenCredential -> {
-                val googleIdToken = credential.idToken
-                Log.d("GOOGLE_SIGN_IN", "Got Google ID token: $googleIdToken")
-                onSuccess(googleIdToken)
-            }
-            is CustomCredential -> {
-                if (credential.type == GoogleIdTokenCredential.TYPE_GOOGLE_ID_TOKEN_CREDENTIAL) {
-                    try {
-                        val googleIdTokenCredential = GoogleIdTokenCredential.createFrom(credential.data)
-                        val googleIdToken = googleIdTokenCredential.idToken
-                        Log.d("GOOGLE_SIGN_IN", "Got Google ID token from CustomCredential: $googleIdToken")
-                        onSuccess(googleIdToken)
-                    } catch (e: GoogleIdTokenParsingException) {
-                        Log.e("GOOGLE_SIGN_IN", "Received an invalid Google ID token response", e)
-                    }
-                } else {
-                    Log.e("GOOGLE_SIGN_IN", "Unexpected CustomCredential type: ${credential.type}")
-                }
-            }
-            else -> {
-                Log.e("GOOGLE_SIGN_IN", "Unexpected credential type: ${credential::class.java.name}")
-            }
-        }
     }
 }
