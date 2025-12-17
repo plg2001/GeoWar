@@ -308,38 +308,41 @@ def join_lobby():
         return jsonify({"message": "JSON mancante"}), 400
         
     user_id = data.get("user_id")
+    lobby_id = data.get("lobby_id")
+
     if not user_id:
         return jsonify({"message": "User ID mancante"}), 400
+    
+    if not lobby_id:
+        return jsonify({"message": "Lobby ID mancante"}), 400
         
     user = User.query.get(user_id)
     if not user or user.banned:
         return jsonify({"message": "Utente non valido"}), 403
 
+    target_lobby = Lobby.query.get(lobby_id)
+    if not target_lobby:
+        return jsonify({"message": "Lobby non trovata"}), 404
+
+    if target_lobby.status not in ['WAITING', 'ACTIVE']:
+        return jsonify({"message": "La lobby non è disponibile"}), 403
+
     # Se l'utente è già in una lobby WAITING, rimaniamoci
     if user.lobby_id:
-        current_lobby = Lobby.query.get(user.lobby_id)
-        if current_lobby and current_lobby.status == "WAITING":
-            return jsonify({
-                "message": "Già in una lobby",
-                "lobby_id": str(current_lobby.id),
+        if user.lobby_id == lobby_id:
+             return jsonify({
+                "message": "Già in questa lobby",
+                "lobby_id": str(target_lobby.id),
                 "team": user.team
             }), 200
+        else:
+            # TODO: maybe leave the old lobby first? for now, just prevent joining.
+            return jsonify({"message": "Lascia la lobby corrente prima di unirtene ad un'altra"}), 400
+
+    count = User.query.filter_by(lobby_id=target_lobby.id).count()
+    if count >= LOBBY_MAX_PLAYERS:
+        return jsonify({"message": "Lobby piena"}), 409
             
-    # Cerca una lobby WAITING con meno di 20 giocatori
-    lobbies = Lobby.query.filter_by(status="WAITING").all()
-    target_lobby = None
-    
-    for lobby in lobbies:
-        count = User.query.filter_by(lobby_id=lobby.id).count()
-        if count < LOBBY_MAX_PLAYERS:
-            target_lobby = lobby
-            break
-            
-    if not target_lobby:
-        target_lobby = Lobby(status="WAITING")
-        db.session.add(target_lobby)
-        db.session.commit()
-        
     user.lobby_id = target_lobby.id
     user.team = None # Reset team when joining new lobby
     db_commit_or_500()
@@ -348,6 +351,20 @@ def join_lobby():
         "message": "Lobby assegnata",
         "lobby_id": str(target_lobby.id)
     }), 200
+
+@app.route("/lobbies", methods=["GET"])
+def get_lobbies():
+    lobbies = Lobby.query.filter(Lobby.status.in_(['WAITING', 'ACTIVE'])).all()
+    result = []
+    for lobby in lobbies:
+        player_count = User.query.filter_by(lobby_id=lobby.id).count()
+        result.append({
+            "id": lobby.id,
+            "status": lobby.status,
+            "created_at": lobby.created_at,
+            "player_count": player_count
+        })
+    return jsonify(result), 200
 
 @app.route("/lobby/leave", methods=["POST"])
 def leave_lobby():
@@ -461,13 +478,7 @@ def get_targets():
         # Per admin meglio vedere tutto, ma per ora torniamo i globali per sicurezza
         targets = Target.query.filter(Target.lobby_id == None).all()
 
-    return jsonify([{
-        "id": t.id,
-        "name": t.name,
-        "lat": t.lat,
-        "lon": t.lon,
-        "owner": t.owner_team
-    } for t in targets]), 200
+    return jsonify([{"id": t.id,"name": t.name,"lat": t.lat,"lon": t.lon,"owner": t.owner_team} for t in targets]), 200
 
 
 @app.route("/auth/google_login", methods=["POST"])
@@ -552,14 +563,7 @@ def google_login():
 @app.route("/admin/users", methods=["GET"])
 def get_all_users():
     users = User.query.all()
-    return jsonify([{
-        "id": u.id,
-        "username": u.username,
-        "admin": u.admin,
-        "team": u.team,
-        "score": u.score,
-        "lobby_id": u.lobby_id
-    } for u in users]), 200
+    return jsonify([{"id": u.id,"username": u.username,"admin": u.admin,"team": u.team,"score": u.score,"lobby_id": u.lobby_id} for u in users]), 200
 
 @app.route("/admin/ban_user/<int:user_id>", methods=["POST"])
 def ban_user(user_id):
@@ -662,14 +666,7 @@ def users_positions():
         User.banned == False
     ).all()
 
-    return jsonify([{
-        "id": u.id,
-        "username": u.username,
-        "lat": u.lat,
-        "lon": u.lon,
-        "team": u.team,
-        "lobby_id": u.lobby_id
-    } for u in users]), 200
+    return jsonify([{"id": u.id,"username": u.username,"lat": u.lat,"lon": u.lon,"team": u.team,"lobby_id": u.lobby_id} for u in users]), 200
 
 
 @app.route("/generate_random_targets", methods=["POST"])

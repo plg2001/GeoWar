@@ -1,5 +1,6 @@
 package com.example.geowar.data.auth
 
+import com.example.geowar.data.LobbyInfo
 import com.example.geowar.models.UserDetails
 import retrofit2.Response
 import retrofit2.http.Body
@@ -62,6 +63,9 @@ interface AuthApi {
     suspend fun generateRandomTargets(@Body request: GenerateRandomTargetsRequest): GenericResponse
 
     // LOBBY
+    @GET("/lobbies")
+    suspend fun getLobbies(): List<LobbyInfo>
+
     @POST("/lobby/join")
     suspend fun joinLobby(@Body request: JoinLobbyRequest): JoinLobbyResponse
 

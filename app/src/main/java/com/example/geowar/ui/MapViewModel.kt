@@ -8,7 +8,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.geowar.data.auth.ApiClient
+import com.example.geowar.data.ApiClient
 import com.example.geowar.data.auth.GenerateRandomTargetsRequest
 import com.example.geowar.data.auth.HackRequest
 import com.example.geowar.data.auth.JoinLobbyRequest
@@ -159,7 +159,7 @@ class MapViewModel(application: Application) : AndroidViewModel(application) {
             val userId = userRepository.getUserId()
             if (userId != -1) {
                 try {
-                    ApiClient.authApi.leaveLobby(JoinLobbyRequest(userId))
+                    ApiClient.authApi.leaveLobby(JoinLobbyRequest(userId, currentLobbyId ?: -1))
                 } catch (e: Exception) {
                     e.printStackTrace()
                 }

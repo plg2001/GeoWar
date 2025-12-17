@@ -34,6 +34,7 @@ import com.example.geowar.ui.TeamSelectionScreen
 import com.example.geowar.ui.admin.AdminScreen
 import com.example.geowar.ui.auth.AuthScreen
 import com.example.geowar.ui.auth.AuthViewModel
+import com.example.geowar.ui.lobby.LobbyListScreen
 import com.example.geowar.ui.lobby.LobbyScreen
 import com.example.geowar.ui.lobby.LobbyViewModel
 import com.example.geowar.ui.theme.GeoWarTheme
@@ -191,12 +192,26 @@ class MainActivity : ComponentActivity() {
                             LobbyScreen(
                                 username = username,
                                 onPublicMatchClick = {
+                                    lobbyViewModel.getLobbies()
+                                    navController.navigate("lobby_list")
+                                },
+                                onPrivateMatchClick = {
+                                    Toast.makeText(this@MainActivity, "In arrivo...", Toast.LENGTH_SHORT).show()
+                                }
+                            )
+                        }
+                        
+                        // -------------------------
+                        // 3.5. Lobby List
+                        // -------------------------
+                        composable("lobby_list") {
+                            LobbyListScreen(
+                                lobbyViewModel = lobbyViewModel,
+                                onLobbyClick = { lobbyId ->
                                     if (currentUserId != null) {
-                                        lobbyViewModel.joinPublicLobby(currentUserId!!) { response, msg ->
+                                        lobbyViewModel.joinLobby(currentUserId!!, lobbyId) { response, msg ->
                                             if (response != null) {
                                                 Toast.makeText(this@MainActivity, "Lobby: ${response.lobby_id}", Toast.LENGTH_SHORT).show()
-                                                // Naviga alla selezione team. 
-                                                // Potremmo passare l'ID della lobby se necessario
                                                 navController.navigate("team_selection")
                                             } else {
                                                 Toast.makeText(this@MainActivity, msg, Toast.LENGTH_LONG).show()
@@ -207,8 +222,8 @@ class MainActivity : ComponentActivity() {
                                         navController.navigate("auth")
                                     }
                                 },
-                                onPrivateMatchClick = {
-                                    Toast.makeText(this@MainActivity, "In arrivo...", Toast.LENGTH_SHORT).show()
+                                onBackClick = { 
+                                    navController.popBackStack()
                                 }
                             )
                         }

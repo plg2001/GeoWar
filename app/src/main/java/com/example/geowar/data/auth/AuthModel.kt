@@ -89,7 +89,8 @@ data class GenerateRandomTargetsRequest(
 )
 
 data class JoinLobbyRequest(
-    val user_id: Int
+    val user_id: Int,
+    val lobby_id: Int
 )
 
 data class JoinLobbyResponse(
