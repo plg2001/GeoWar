@@ -35,7 +35,17 @@ db = SQLAlchemy(app)
 
 ALLOWED_TEAMS = {"RED", "BLUE"}
 
+# MODIFICA RICHIESTA: Max 20 totali (10 per team)
+LOBBY_MAX_PLAYERS = 20
+LOBBY_TEAM_SIZE = 10
+
 # ---------------- MODELS ----------------
+
+class Lobby(db.Model):
+    __tablename__ = "lobby"
+    id = db.Column(db.Integer, primary_key=True)
+    status = db.Column(db.String(20), default="WAITING") # WAITING, ACTIVE, FINISHED
+    created_at = db.Column(db.Float, default=time.time)
 
 class User(db.Model):
     __tablename__ = "user"
@@ -52,9 +62,11 @@ class User(db.Model):
     lon = db.Column(db.Float, default=0.0)
     last_active = db.Column(db.Float, default=0.0)
 
-    avatar_seed = db.Column(db.String(80),default = "51d70032-0099-43b4-b2dd-5557")
+    avatar_seed = db.Column(db.String(80), default="51d70032-0099-43b4-b2dd-5557")
     admin = db.Column(db.Boolean, default=False)
     banned = db.Column(db.Boolean, default=False)
+    
+    lobby_id = db.Column(db.Integer, db.ForeignKey("lobby.id"), nullable=True)
 
 
 class Target(db.Model):
@@ -67,6 +79,8 @@ class Target(db.Model):
 
     owner_team = db.Column(db.String(10), default="NEUTRAL")
     last_hacked = db.Column(db.Float, default=0.0)
+    
+    lobby_id = db.Column(db.Integer, db.ForeignKey("lobby.id"), nullable=True)
 
 
 class HackLog(db.Model):
@@ -101,7 +115,7 @@ class Stun(db.Model):
 
 with app.app_context():
     db.create_all()
-    # Inizializzazione target di esempio se non esistono
+    # Inizializzazione target di esempio se non esistono (Globali / Lobby NULL)
     if not Target.query.first():
         sample_targets = [
             Target(name="Duomo di Milano", lat=45.4641, lon=9.1919, owner_team="NEUTRAL"),
@@ -129,6 +143,29 @@ def db_commit_or_500():
     except SQLAlchemyError as e:
         db.session.rollback()
         return jsonify({"message": "Errore database", "detail": str(e)}), 500
+
+def generate_lobby_targets(lobby_id, count=20):
+    # Genera target randomici per l'Italia per una specifica lobby
+    # Bounding box approssimativo Italia
+    min_lat, max_lat = 36.6, 47.1
+    min_lon, max_lon = 6.6, 18.5
+    
+    new_targets = []
+    for i in range(count):
+        lat = random.uniform(min_lat, max_lat)
+        lon = random.uniform(min_lon, max_lon)
+        
+        target = Target(
+            name=f"Obiettivo Lobby {lobby_id} #{i+1}",
+            lat=lat,
+            lon=lon,
+            owner_team="NEUTRAL",
+            lobby_id=lobby_id
+        )
+        new_targets.append(target)
+    
+    db.session.add_all(new_targets)
+    db.session.commit()
 
 # ---------------- ROUTES ----------------
 
@@ -199,7 +236,8 @@ def login():
                 "username": user.username,
                 "team": user.team,
                 "score": user.score,
-                "admin": user.admin
+                "admin": user.admin,
+                "lobby_id": user.lobby_id
             },
             "token": "fake-jwt-token-12345"
         }), 200
@@ -220,7 +258,8 @@ def get_user_details(user_id):
         "id": user.id,
         "username": user.username,
         "email": user.email,
-        "avatar_seed": user.avatar_seed
+        "avatar_seed": user.avatar_seed,
+        "lobby_id": user.lobby_id
     }), 200
 
 @app.route("/user/<int:user_id>", methods=["PUT"])
@@ -236,16 +275,12 @@ def update_user_details(user_id):
     if user.banned:
         return jsonify({"message": "Utente bannato"}), 403
 
-    # TODO: Aggiungere controllo che l'utente che fa la richiesta sia l'utente stesso o un admin
-
     new_username = data.get("username", "").strip()
     new_email = data.get("email", "").strip().lower()
 
-    # Validazione
     if not new_username or not new_email:
         return jsonify({"message": "Username e email non possono essere vuoti"}), 400
 
-    # Controlla se il nuovo username o email sono già in uso da *altri* utenti
     if User.query.filter(User.id != user_id, User.username == new_username).first():
         return jsonify({"message": "Username già in uso"}), 409
 
@@ -255,7 +290,6 @@ def update_user_details(user_id):
     user.username = new_username
     user.email = new_email
 
-    # Gestione avatar_seed
     new_avatar_seed = data.get("avatar_seed")
     if new_avatar_seed:
         user.avatar_seed = new_avatar_seed.strip()
@@ -265,6 +299,55 @@ def update_user_details(user_id):
         return err
 
     return jsonify({"message": "Profilo aggiornato con successo"}), 200
+
+
+@app.route("/lobby/join", methods=["POST"])
+def join_lobby():
+    data = get_json()
+    if not data:
+        return jsonify({"message": "JSON mancante"}), 400
+        
+    user_id = data.get("user_id")
+    if not user_id:
+        return jsonify({"message": "User ID mancante"}), 400
+        
+    user = User.query.get(user_id)
+    if not user or user.banned:
+        return jsonify({"message": "Utente non valido"}), 403
+
+    # Se l'utente è già in una lobby WAITING, rimaniamoci
+    if user.lobby_id:
+        current_lobby = Lobby.query.get(user.lobby_id)
+        if current_lobby and current_lobby.status == "WAITING":
+            return jsonify({
+                "message": "Già in una lobby",
+                "lobby_id": str(current_lobby.id),
+                "team": user.team
+            }), 200
+            
+    # Cerca una lobby WAITING con meno di 20 giocatori
+    lobbies = Lobby.query.filter_by(status="WAITING").all()
+    target_lobby = None
+    
+    for lobby in lobbies:
+        count = User.query.filter_by(lobby_id=lobby.id).count()
+        if count < LOBBY_MAX_PLAYERS:
+            target_lobby = lobby
+            break
+            
+    if not target_lobby:
+        target_lobby = Lobby(status="WAITING")
+        db.session.add(target_lobby)
+        db.session.commit()
+        
+    user.lobby_id = target_lobby.id
+    user.team = None # Reset team when joining new lobby
+    db_commit_or_500()
+    
+    return jsonify({
+        "message": "Lobby assegnata",
+        "lobby_id": str(target_lobby.id)
+    }), 200
 
 
 @app.route("/set_team", methods=["POST"])
@@ -288,6 +371,31 @@ def set_team():
     if user.banned:
         return jsonify({"success": False, "message": "Utente bannato"}), 403
 
+    # Controllo Lobby
+    if user.lobby_id:
+        lobby = Lobby.query.get(user.lobby_id)
+        if lobby:
+            # Conta giocatori nel team
+            team_count = User.query.filter_by(lobby_id=user.lobby_id, team=team).count()
+            if team_count >= LOBBY_TEAM_SIZE:
+                return jsonify({"success": False, "message": f"Team {team} completo nella lobby"}), 409
+            
+            user.team = team
+            db.session.commit()
+            
+            # Conta i giocatori per squadra
+            red_count = User.query.filter_by(lobby_id=user.lobby_id, team="RED").count()
+            blue_count = User.query.filter_by(lobby_id=user.lobby_id, team="BLUE").count()
+            
+            # MODIFICA RICHIESTA: Avvia se c'è almeno 1 giocatore per team
+            if lobby.status == "WAITING" and red_count >= 1 and blue_count >= 1:
+                lobby.status = "ACTIVE"
+                db.session.commit()
+                generate_lobby_targets(lobby.id)
+                
+            return jsonify({"success": True, "message": f"Team aggiornato a {user.team}"}), 200
+
+    # Fallback per utenti senza lobby (compatibilità)
     user.team = team
     err = db_commit_or_500()
     if err:
@@ -298,7 +406,21 @@ def set_team():
 
 @app.route("/targets", methods=["GET"])
 def get_targets():
-    targets = Target.query.all()
+    user_id = request.args.get('user_id', type=int)
+    
+    if user_id:
+        user = User.query.get(user_id)
+        if user and user.lobby_id:
+            # Ritorna target della lobby dell'utente
+            targets = Target.query.filter_by(lobby_id=user.lobby_id).all()
+        else:
+             # Utente senza lobby o ID non trovato -> Targets globali (lobby_id NULL)
+             targets = Target.query.filter(Target.lobby_id == None).all()
+    else:
+        # Nessun user_id specificato -> comportamento legacy o admin, ritorna TUTTI o solo globali?
+        # Per admin meglio vedere tutto, ma per ora torniamo i globali per sicurezza
+        targets = Target.query.filter(Target.lobby_id == None).all()
+
     return jsonify([{
         "id": t.id,
         "name": t.name,
@@ -343,7 +465,8 @@ def google_login():
                     "username": user.username,
                     "team": user.team,
                     "score": user.score,
-                    "admin": user.admin
+                    "admin": user.admin,
+                    "lobby_id": user.lobby_id
                 }
             }), 200
 
@@ -357,7 +480,6 @@ def google_login():
         new_user = User(
             username=new_username,
             email=email,
-            # hash di una stringa non utilizzabile; evita check_password_hash crash
             password_hash=generate_password_hash(os.urandom(16).hex()),
         )
 
@@ -373,14 +495,14 @@ def google_login():
                 "username": new_user.username,
                 "team": new_user.team,
                 "score": new_user.score,
-                "admin": new_user.admin
+                "admin": new_user.admin,
+                "lobby_id": new_user.lobby_id
             }
         }), 200
 
     except ValueError:
         return jsonify({"message": "Token Google non valido"}), 401
     except Exception as e:
-        # rollback di sicurezza se qualcosa ha toccato la sessione
         db.session.rollback()
         return jsonify({"message": f"Errore interno del server: {str(e)}"}), 500
 
@@ -395,7 +517,8 @@ def get_all_users():
         "username": u.username,
         "admin": u.admin,
         "team": u.team,
-        "score": u.score
+        "score": u.score,
+        "lobby_id": u.lobby_id
     } for u in users]), 200
 
 @app.route("/admin/ban_user/<int:user_id>", methods=["POST"])
@@ -433,6 +556,7 @@ def create_target():
         return jsonify({"message": "Dati target incompleti"}), 400
 
     new_target = Target(name=name, lat=lat, lon=lon, owner_team=owner)
+    # Target creato da admin è globale (lobby_id = None)
     db.session.add(new_target)
     err = db_commit_or_500()
     if err:
@@ -491,6 +615,8 @@ def users_positions():
     now = time.time()
     ACTIVE_SECONDS = 10
 
+    # Return only users active recently. 
+    # TODO: In future, filter by lobby? For now show all active.
     users = User.query.filter(
         User.last_active >= now - ACTIVE_SECONDS,
         User.banned == False
@@ -501,12 +627,14 @@ def users_positions():
         "username": u.username,
         "lat": u.lat,
         "lon": u.lon,
-        "team": u.team
+        "team": u.team,
+        "lobby_id": u.lobby_id
     } for u in users]), 200
 
 
 @app.route("/generate_random_targets", methods=["POST"])
 def generate_random_targets():
+    # Per debug o admin, genera target globali o locali se specificato lobby
     data = get_json()
     if not data:
         return jsonify({"message": "JSON non valido"}), 400
@@ -524,21 +652,13 @@ def generate_random_targets():
 
     new_targets = []
     for i in range(count):
-        # Convert radius from km to radians
         radius_rad = radius_km / R
-
-        # Random distance and angle
         r = radius_rad * math.sqrt(random.random())
         theta = 2 * math.pi * random.random()
-
         lat_rad = math.radians(lat)
         lon_rad = math.radians(lon)
-
-        # New position in radians
         new_lat_rad = math.asin(math.sin(lat_rad) * math.cos(r) + math.cos(lat_rad) * math.sin(r) * math.cos(theta))
         new_lon_rad = lon_rad + math.atan2(math.sin(theta) * math.sin(r) * math.cos(lat_rad), math.cos(r) - math.sin(lat_rad) * math.sin(new_lat_rad))
-
-        # Convert back to degrees
         new_lat = math.degrees(new_lat_rad)
         new_lon = math.degrees(new_lon_rad)
 
@@ -560,7 +680,6 @@ def generate_random_targets():
     return jsonify({"message": f"{count} target casuali generati con successo"}), 200
 
 
-# ----------- HAKERAGGIO ------------------------
 @app.route("/hack", methods=["POST"])
 def hack_target():
     data = get_json()
@@ -582,6 +701,10 @@ def hack_target():
         return jsonify({"message": "Target non trovato"}), 404
     if not user.team:
         return jsonify({"message": "Utente senza team"}), 400
+        
+    # Check if target belongs to user's lobby or is global
+    if target.lobby_id and target.lobby_id != user.lobby_id:
+         return jsonify({"message": "Target non accessibile"}), 403
 
     log = HackLog(
         user_id=user.id,
@@ -589,7 +712,6 @@ def hack_target():
         team=user.team
     )
 
-    # opzionale: cambio owner target
     target.owner_team = user.team
     target.last_hacked = time.time()
 

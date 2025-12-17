@@ -80,11 +80,19 @@ data class UpdatePositionRequest(
     val lon: Double
 )
 
-
-
 data class GenerateRandomTargetsRequest(
     val lat: Double,
     val lon: Double,
     val count: Int = 10,
     val radius_km: Int = 30
+)
+
+data class JoinLobbyRequest(
+    val user_id: Int
+)
+
+data class JoinLobbyResponse(
+    val lobby_id: String,
+    val message: String,
+    val team: String? = null
 )

@@ -8,6 +8,7 @@ import retrofit2.http.POST
 import retrofit2.http.PUT
 import retrofit2.http.DELETE
 import retrofit2.http.Path
+import retrofit2.http.Query
 
 interface AuthApi {
 
@@ -37,7 +38,7 @@ interface AuthApi {
     suspend fun banUser(@Body request: BanUserRequest): GenericResponse
 
     @GET("/targets")
-    suspend fun getTargets(): List<TargetResponse>
+    suspend fun getTargets(@Query("user_id") userId: Int? = null): List<TargetResponse>
 
     @POST("/admin/create_target")
     suspend fun createTarget(@Body request: CreateTargetRequest): GenericResponse
@@ -59,4 +60,8 @@ interface AuthApi {
 
     @POST("/generate_random_targets")
     suspend fun generateRandomTargets(@Body request: GenerateRandomTargetsRequest): GenericResponse
+
+    // LOBBY
+    @POST("/lobby/join")
+    suspend fun joinLobby(@Body request: JoinLobbyRequest): JoinLobbyResponse
 }

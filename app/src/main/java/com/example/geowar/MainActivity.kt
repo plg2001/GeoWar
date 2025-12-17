@@ -34,6 +34,8 @@ import com.example.geowar.ui.TeamSelectionScreen
 import com.example.geowar.ui.admin.AdminScreen
 import com.example.geowar.ui.auth.AuthScreen
 import com.example.geowar.ui.auth.AuthViewModel
+import com.example.geowar.ui.lobby.LobbyScreen
+import com.example.geowar.ui.lobby.LobbyViewModel
 import com.example.geowar.ui.theme.GeoWarTheme
 import com.google.android.libraries.identity.googleid.GetGoogleIdOption
 import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
@@ -80,6 +82,7 @@ class MainActivity : ComponentActivity() {
                 ) {
                     val navController = rememberNavController()
                     val viewModel: AuthViewModel = viewModel()
+                    val lobbyViewModel: LobbyViewModel = viewModel()
 
                     var currentUserId by remember { mutableStateOf<Int?>(null) }
 
@@ -135,8 +138,8 @@ class MainActivity : ComponentActivity() {
                                         popUpTo("auth") { inclusive = true }
                                     }
                                 } else {
-                                    // Se è utente normale, vai alla selezione team
-                                    navController.navigate("team_selection")
+                                    // Se è utente normale, vai alla selezione lobby
+                                    navController.navigate("lobby_selection")
                                 }
                             }
 
@@ -181,7 +184,35 @@ class MainActivity : ComponentActivity() {
                         }
 
                         // -------------------------
-                        // 3. Team Selection
+                        // 3. Lobby Selection
+                        // -------------------------
+                        composable("lobby_selection") {
+                            LobbyScreen(
+                                onPublicMatchClick = {
+                                    if (currentUserId != null) {
+                                        lobbyViewModel.joinPublicLobby(currentUserId!!) { response, msg ->
+                                            if (response != null) {
+                                                Toast.makeText(this@MainActivity, "Lobby: ${response.lobby_id}", Toast.LENGTH_SHORT).show()
+                                                // Naviga alla selezione team. 
+                                                // Potremmo passare l'ID della lobby se necessario
+                                                navController.navigate("team_selection")
+                                            } else {
+                                                Toast.makeText(this@MainActivity, msg, Toast.LENGTH_LONG).show()
+                                            }
+                                        }
+                                    } else {
+                                        Toast.makeText(this@MainActivity, "Errore: Utente non identificato", Toast.LENGTH_SHORT).show()
+                                        navController.navigate("auth")
+                                    }
+                                },
+                                onPrivateMatchClick = {
+                                    Toast.makeText(this@MainActivity, "In arrivo...", Toast.LENGTH_SHORT).show()
+                                }
+                            )
+                        }
+
+                        // -------------------------
+                        // 4. Team Selection
                         // -------------------------
                         composable("team_selection") {
                             TeamSelectionScreen(
@@ -203,7 +234,7 @@ class MainActivity : ComponentActivity() {
                         }
 
                         // -------------------------
-                        // 4. Map Screen
+                        // 5. Map Screen
                         // -------------------------
                         composable("map/{team}") { backStackEntry ->
                             val team = backStackEntry.arguments?.getString("team") ?: "UNKNOWN"
@@ -224,7 +255,7 @@ class MainActivity : ComponentActivity() {
                         }
 
                         // -------------------------
-                        // 5. Admin Dashboard
+                        // 6. Admin Dashboard
                         // -------------------------
                         composable("admin_dashboard") {
                             AdminScreen(
@@ -239,7 +270,7 @@ class MainActivity : ComponentActivity() {
                         }
                         
                         // -------------------------
-                        // 6. Account Screen
+                        // 7. Account Screen
                         // -------------------------
                         composable("account") {
                             AccountScreen(
@@ -249,7 +280,7 @@ class MainActivity : ComponentActivity() {
                         }
                         
                         // -------------------------
-                        // 7. Accelerometer Minigame Screen (Old)
+                        // 8. Accelerometer Minigame Screen (Old)
                         // -------------------------
                         composable("minigame") {
                             MinigameScreen(
@@ -265,7 +296,7 @@ class MainActivity : ComponentActivity() {
                         }
                         
                         // -------------------------
-                        // 8. Color Minigame Screen (New)
+                        // 9. Color Minigame Screen (New)
                         // -------------------------
                         composable("color_minigame") {
                             // Seleziona un colore casuale tra ROSSO, VERDE, BLU

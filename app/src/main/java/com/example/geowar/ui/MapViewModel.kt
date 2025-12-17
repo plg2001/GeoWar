@@ -76,7 +76,12 @@ class MapViewModel(application: Application) : AndroidViewModel(application) {
     fun loadTargets() {
         viewModelScope.launch {
             try {
-                targets = ApiClient.authApi.getTargets()
+                val userId = userRepository.getUserId()
+                if (userId != -1) {
+                    targets = ApiClient.authApi.getTargets(userId)
+                } else {
+                    targets = ApiClient.authApi.getTargets(null)
+                }
             } catch (e: Exception) {
                 e.printStackTrace()
             }
@@ -90,7 +95,10 @@ class MapViewModel(application: Application) : AndroidViewModel(application) {
                 try {
                     // Ricarica la lista dei target dal server ogni 5 secondi
                     // per aggiornare i colori se qualcuno li ha conquistati
-                    targets = ApiClient.authApi.getTargets()
+                    val userId = userRepository.getUserId()
+                    if (userId != -1) {
+                        targets = ApiClient.authApi.getTargets(userId)
+                    }
                 } catch (e: Exception) {
                     e.printStackTrace()
                 }
@@ -207,7 +215,7 @@ class MapViewModel(application: Application) : AndroidViewModel(application) {
             val userId = userRepository.getUserId()
             if (userId != -1) {
                 try {
-                    ApiClient.authApi.hackTarget(HackRequest(userId, targetId))
+                    ApiClient.authApi.hackTarget(HackRequest(userId, targetId)) 
                     // Ricarica immediatamente i target per aggiornare il colore sulla mappa
                     loadTargets() 
                 } catch (e: Exception) {
