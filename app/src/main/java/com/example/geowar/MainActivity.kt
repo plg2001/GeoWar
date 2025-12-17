@@ -187,7 +187,9 @@ class MainActivity : ComponentActivity() {
                         // 3. Lobby Selection
                         // -------------------------
                         composable("lobby_selection") {
+                            val username = sharedPref.getString(PREF_USERNAME, "Player") ?: "Player"
                             LobbyScreen(
+                                username = username,
                                 onPublicMatchClick = {
                                     if (currentUserId != null) {
                                         lobbyViewModel.joinPublicLobby(currentUserId!!) { response, msg ->
@@ -243,8 +245,10 @@ class MainActivity : ComponentActivity() {
                                 username = username,
                                 team = team,
                                 onLogout = {
-                                    sharedPref.edit { clear() }
-                                    navController.navigate("auth") {
+                                    // Rimuovi solo il team, mantieni login
+                                    sharedPref.edit { remove(PREF_TEAM) }
+                                    // Torna alla selezione lobby
+                                    navController.navigate("lobby_selection") {
                                         popUpTo("landing") { inclusive = true }
                                     }
                                 },

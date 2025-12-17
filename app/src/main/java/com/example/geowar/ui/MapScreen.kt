@@ -9,6 +9,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.*
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
@@ -27,6 +28,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.Dialog
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
@@ -68,20 +70,14 @@ fun MapScreen(
     val currentLobbyId by remember { derivedStateOf { mapViewModel.currentLobbyId } }
     val gameCancelled by remember { derivedStateOf { mapViewModel.gameCancelled } }
     
-    // Cooldown check helper
-    val isTargetOnCooldown: (Int) -> Boolean = { id -> mapViewModel.isTargetOnCooldown(id) }
-
     var hasPermission by remember { mutableStateOf(false) }
     var showLogoutDialog by remember { mutableStateOf(false) }
     var isFabMenuExpanded by remember { mutableStateOf(false) }
     
-    // Stato per il Minigioco
     var showMinigame by remember { mutableStateOf(false) }
     var currentMinigameTargetName by remember { mutableStateOf<String?>(null) }
-    // Colore target per il minigioco "Trova il Colore"
     var currentMinigameColor by remember { mutableStateOf<String>("RED") }
     
-    // Variabile per capire se è il primo posizionamento della camera
     var isFirstCameraMove by remember { mutableStateOf(true) }
 
     val permissionLauncher = rememberLauncherForActivityResult(
@@ -89,14 +85,12 @@ fun MapScreen(
         onResult = { isGranted -> hasPermission = isGranted }
     )
 
-    // Camera inizializzata a zoom alto (20f), anche se la posizione è provvisoria
     val cameraPositionState = rememberCameraPositionState {
         position = CameraPosition.fromLatLngZoom(LatLng(45.4642, 9.1900), 20f)
     }
 
     val coroutineScope = rememberCoroutineScope()
 
-    // Lifecycle Observer per ricaricare l'avatar quando si torna nella schermata
     val lifecycleOwner = LocalLifecycleOwner.current
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
@@ -114,24 +108,19 @@ fun MapScreen(
         permissionLauncher.launch(Manifest.permission.ACCESS_FINE_LOCATION)
     }
     
-    // Handling Game Cancelled
     if (gameCancelled) {
-        AlertDialog(
-            onDismissRequest = { /* Non dismissable, deve uscire */ },
-            title = { Text("Game Cancelled") },
-            text = { Text("Not enough players to continue (need at least 1 vs 1). returning to menu.") },
-            confirmButton = {
-                Button(
-                    onClick = { 
-                        mapViewModel.resetGameCancelled()
-                        mapViewModel.leaveLobby() 
-                        onLogout() 
-                    }, 
-                    colors = ButtonDefaults.buttonColors(containerColor = Color.Red)
-                ) { 
-                    Text("OK") 
-                }
-            }
+        CyberpunkDialog(
+            title = "TRANSMISSION LOST",
+            message = "Not enough operators to sustain connection. Returning to lobby selection.",
+            confirmText = "ROGER",
+            onConfirm = {
+                mapViewModel.resetGameCancelled()
+                mapViewModel.leaveLobby()
+                onLogout()
+            },
+            onDismiss = { /* Non dismissable */ },
+            icon = Icons.Default.WarningAmber,
+            titleColor = MaterialTheme.colorScheme.error
         )
     }
 
@@ -160,15 +149,12 @@ fun MapScreen(
         }
     }
 
-    // Logica di aggiornamento camera
     LaunchedEffect(playerPosition) {
         playerPosition?.let {
             if (isFirstCameraMove) {
-                // Primo caricamento: SCATTO immediato allo zoom massimo (20f)
                 cameraPositionState.move(CameraUpdateFactory.newLatLngZoom(it, 20f))
                 isFirstCameraMove = false
             } else {
-                // Movimenti successivi (Joystick): Animazione rapida (100ms) mantenendo lo zoom
                 cameraPositionState.animate(CameraUpdateFactory.newLatLng(it), 100)
             }
         }
@@ -192,7 +178,6 @@ fun MapScreen(
         }
     }
     
-    // Scarica gli avatar per gli altri giocatori
     LaunchedEffect(otherPlayers) {
         otherPlayers.forEach { player ->
             if (player.avatar_seed != null) {
@@ -211,7 +196,6 @@ fun MapScreen(
         }
     }
 
-    // SE IL MINIGIOCO E' ATTIVO, MOSTRA SOLO QUELLO A SCHERMO INTERO
     if (showMinigame) {
         val isNeutralTarget = nearbyTarget?.owner == "NEUTRAL"
         
@@ -219,9 +203,7 @@ fun MapScreen(
             ColorMinigameScreen(
                 targetColorName = currentMinigameColor,
                 onWin = {
-                    nearbyTarget?.let { target ->
-                        mapViewModel.conquerTarget(target.id)
-                    }
+                    nearbyTarget?.let { target -> mapViewModel.conquerTarget(target.id) }
                     showMinigame = false
                     currentMinigameTargetName = null
                     mapViewModel.clearNearbyTarget()
@@ -233,13 +215,10 @@ fun MapScreen(
                 }
             )
         } else {
-             // Vecchio minigioco per i nemici
              MinigameScreen(
                 targetName = currentMinigameTargetName ?: "TARGET",
                 onWin = {
-                    nearbyTarget?.let { target ->
-                        mapViewModel.conquerTarget(target.id)
-                    }
+                    nearbyTarget?.let { target -> mapViewModel.conquerTarget(target.id) }
                     showMinigame = false
                     currentMinigameTargetName = null
                     mapViewModel.clearNearbyTarget()
@@ -265,13 +244,9 @@ fun MapScreen(
             GoogleMap(
                 modifier = Modifier.fillMaxSize(),
                 cameraPositionState = cameraPositionState,
-                properties = MapProperties(
-                    isMyLocationEnabled = false,
-                    mapStyleOptions = customMapStyle
-                ),
+                properties = MapProperties(isMyLocationEnabled = false, mapStyleOptions = customMapStyle),
                 uiSettings = MapUiSettings(zoomControlsEnabled = false, myLocationButtonEnabled = false)
             ) {
-                // Marker Giocatore
                 if (avatarBitmap != null) {
                     Marker(
                         state = MarkerState(position = playerPosition),
@@ -286,11 +261,9 @@ fun MapScreen(
                     )
                 }
                 
-                // Marker Altri Giocatori
                 otherPlayers.forEach { player ->
                     val playerPos = LatLng(player.lat ?: 0.0, player.lon ?: 0.0)
                     val playerColor = if (player.team == "BLUE") BitmapDescriptorFactory.HUE_CYAN else if (player.team == "RED") BitmapDescriptorFactory.HUE_ROSE else BitmapDescriptorFactory.HUE_VIOLET
-                    
                     val playerCache = otherPlayersBitmaps[player.username]
                     
                     if (playerCache != null) {
@@ -310,7 +283,6 @@ fun MapScreen(
                     }
                 }
 
-                // Marker Target
                 targets.forEach { target ->
                     val targetColor = when (target.owner) {
                         "BLUE" -> BitmapDescriptorFactory.HUE_AZURE
@@ -329,7 +301,7 @@ fun MapScreen(
         } else {
             Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    CircularProgressIndicator()
+                    CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
                     Spacer(modifier = Modifier.height(16.dp))
                     Text("Waiting for GPS signal...", color = Color.White)
                 }
@@ -338,7 +310,6 @@ fun MapScreen(
 
         // --- UI OVERLAY ---
         
-        // WAITING MESSAGE OVERLAY
         if (targets.isEmpty() && playerPosition != null && !gameCancelled) {
              Box(
                 modifier = Modifier
@@ -346,26 +317,27 @@ fun MapScreen(
                     .background(Color.Black.copy(alpha = 0.7f)),
                 contentAlignment = Alignment.Center
             ) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    CircularProgressIndicator(color = Color.Yellow)
-                    Spacer(modifier = Modifier.height(24.dp))
+                Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
+                    CircularProgressIndicator(color = MaterialTheme.colorScheme.primary, strokeWidth = 3.dp)
+                    Spacer(modifier = Modifier.height(32.dp))
                     Text(
-                        text = "WAITING FOR OPPONENTS...",
-                        color = Color.Yellow,
-                        style = MaterialTheme.typography.headlineMedium,
-                        fontWeight = FontWeight.Bold
+                        text = "> WAITING FOR OPPONENTS...",
+                        color = MaterialTheme.colorScheme.primary,
+                        style = MaterialTheme.typography.headlineSmall,
+                        fontWeight = FontWeight.Bold,
+                        textAlign = TextAlign.Center
                     )
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
-                        text = "Need at least 1 RED and 1 BLUE player to start.",
+                        text = "Need at least 1 RED and 1 BLUE operator to begin.",
                         color = Color.White,
-                        style = MaterialTheme.typography.bodyLarge
+                        style = MaterialTheme.typography.bodyMedium,
+                        textAlign = TextAlign.Center
                     )
                 }
             }
         }
 
-        // TOP BAR
         Row(
             modifier = Modifier
                 .align(Alignment.TopCenter)
@@ -383,19 +355,19 @@ fun MapScreen(
             Spacer(modifier = Modifier.weight(1f))
             FloatingActionButton(
                 onClick = { showLogoutDialog = true },
-                containerColor = Color.Red,
-                contentColor = Color.White,
-                modifier = Modifier.size(48.dp)
+                containerColor = MaterialTheme.colorScheme.errorContainer,
+                contentColor = MaterialTheme.colorScheme.onErrorContainer,
+                modifier = Modifier.size(48.dp),
+                elevation = FloatingActionButtonDefaults.elevation(0.dp)
             ) {
                 Icon(Icons.AutoMirrored.Filled.ExitToApp, "Logout")
             }
         }
         
-        // BOTTOM LEFT LOBBY ID
         Box(
             modifier = Modifier
                 .align(Alignment.BottomStart)
-                .padding(bottom = 120.dp, start = 16.dp) // Sopra al menu FAB
+                .padding(bottom = 120.dp, start = 16.dp)
         ) {
             if (currentLobbyId != null) {
                 Card(colors = CardDefaults.cardColors(containerColor = Color.Black.copy(alpha = 0.6f))) {
@@ -410,7 +382,6 @@ fun MapScreen(
             }
         }
         
-        // --- POPUP INTERAZIONE TARGET ---
         AnimatedVisibility(
             visible = nearbyTarget != null,
             enter = scaleIn() + fadeIn(),
@@ -421,9 +392,8 @@ fun MapScreen(
                 val isNeutral = target.owner == "NEUTRAL"
                 val isEnemy = target.owner != team && !isNeutral
                 val isOwned = target.owner == team
-                val isCooldown = isTargetOnCooldown(target.id)
+                val isCooldown = mapViewModel.isTargetOnCooldown(target.id)
 
-                // Testo e colore pulsante
                 val buttonText = when {
                     isNeutral -> "START COLOR SCAN"
                     isOwned -> "SECURE ZONE"
@@ -449,7 +419,6 @@ fun MapScreen(
                         modifier = Modifier.padding(16.dp),
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
-                        // Header con pulsante chiusura
                         Box(modifier = Modifier.fillMaxWidth()) {
                             Text(
                                 text = "TARGET DETECTED",
@@ -468,10 +437,7 @@ fun MapScreen(
                         
                         Spacer(modifier = Modifier.height(16.dp))
                         
-                        Text(
-                            text = "You entered the contested zone of:",
-                            color = Color.White
-                        )
+                        Text(text = "You entered the contested zone of:", color = Color.White)
                         Text(
                             text = target.name,
                             color = teamColor,
@@ -510,14 +476,12 @@ fun MapScreen(
                         
                         Spacer(modifier = Modifier.height(24.dp))
                         
-                        // Logica pulsante
                         if (isOwned) {
                             Text("Zone already under control.", color = Color.Green)
                         } else {
                             Button(
                                 onClick = { 
                                     if (isNeutral) {
-                                        // Avvia minigioco colore per Neutrali
                                         val colors = listOf("RED", "GREEN", "BLUE")
                                         currentMinigameColor = colors[Random.nextInt(colors.size)]
                                         currentMinigameTargetName = target.name
@@ -526,7 +490,6 @@ fun MapScreen(
                                         if (isCooldown) {
                                             Toast.makeText(context, "Access Denied: Security Cooldown Active", Toast.LENGTH_SHORT).show()
                                         } else {
-                                            // Avvia minigioco accelerometro per Nemici
                                             currentMinigameTargetName = target.name
                                             showMinigame = true
                                         }
@@ -592,20 +555,18 @@ fun MapScreen(
         }
 
         if (showLogoutDialog) {
-            AlertDialog(
-                onDismissRequest = { showLogoutDialog = false },
-                title = { Text("Leave the game?") },
-                text = { Text("Are you sure you want to exit and return to the main menu?") },
-                confirmButton = {
-                    Button(onClick = { 
-                            showLogoutDialog = false
-                            mapViewModel.leaveLobby()
-                            onLogout() 
-                        }, 
-                        colors = ButtonDefaults.buttonColors(containerColor = Color.Red)
-                    ) { Text("Leave") }
+             CyberpunkDialog(
+                title = "DISCONNECT?",
+                message = "Are you sure you want to disconnect and return to lobby selection?",
+                confirmText = "LEAVE MATCH",
+                dismissText = "STAY",
+                onConfirm = {
+                    showLogoutDialog = false
+                    mapViewModel.leaveLobby()
+                    onLogout()
                 },
-                dismissButton = { TextButton({ showLogoutDialog = false }) { Text("Cancel") } }
+                onDismiss = { showLogoutDialog = false },
+                titleColor = MaterialTheme.colorScheme.error
             )
         }
     }
@@ -628,6 +589,56 @@ private fun FabAction(icon: ImageVector, label: String, onClick: () -> Unit) {
                 style = MaterialTheme.typography.labelSmall,
                 fontWeight = FontWeight.Bold
             )
+        }
+    }
+}
+
+@Composable
+fun CyberpunkDialog(
+    title: String,
+    message: String,
+    confirmText: String,
+    dismissText: String? = null,
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit,
+    icon: ImageVector? = null,
+    titleColor: Color = MaterialTheme.colorScheme.primary
+) {
+    Dialog(onDismissRequest = onDismiss) {
+        Card(
+            shape = MaterialTheme.shapes.large,
+            border = BorderStroke(1.dp, titleColor),
+            colors = CardDefaults.cardColors(
+                containerColor = Color.Black.copy(alpha = 0.9f)
+            )
+        ) {
+            Column(
+                modifier = Modifier.padding(24.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                if (icon != null) {
+                    Icon(icon, contentDescription = null, tint = titleColor, modifier = Modifier.size(48.dp))
+                    Spacer(modifier = Modifier.height(16.dp))
+                }
+                Text(text = title, style = MaterialTheme.typography.headlineSmall, color = titleColor, fontWeight = FontWeight.Bold)
+                Spacer(modifier = Modifier.height(16.dp))
+                Text(text = message, style = MaterialTheme.typography.bodyMedium, color = Color.White, textAlign = TextAlign.Center)
+                Spacer(modifier = Modifier.height(24.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                     if (dismissText != null) {
+                        OutlinedButton(onClick = onDismiss, modifier = Modifier.weight(1f)) {
+                            Text(dismissText)
+                        }
+                    }
+                    Button(
+                        onClick = onConfirm, 
+                        modifier = Modifier.weight(1f),
+                        colors = ButtonDefaults.buttonColors(containerColor = titleColor)
+                    ) {
+                        Text(confirmText)
+                    }
+                }
+            }
         }
     }
 }
