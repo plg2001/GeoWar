@@ -308,14 +308,19 @@ def join_lobby():
         return jsonify({"message": "JSON mancante"}), 400
         
     user_id = data.get("user_id")
-    lobby_id = data.get("lobby_id")
+    lobby_id_raw = data.get("lobby_id")
 
     if not user_id:
         return jsonify({"message": "User ID mancante"}), 400
     
-    if not lobby_id:
+    if lobby_id_raw is None:
         return jsonify({"message": "Lobby ID mancante"}), 400
         
+    try:
+        lobby_id = int(lobby_id_raw)
+    except (ValueError, TypeError):
+        return jsonify({"message": "Lobby ID non valido"}), 400
+
     user = User.query.get(user_id)
     if not user or user.banned:
         return jsonify({"message": "Utente non valido"}), 403
