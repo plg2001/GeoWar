@@ -349,6 +349,46 @@ def join_lobby():
         "lobby_id": str(target_lobby.id)
     }), 200
 
+@app.route("/lobby/leave", methods=["POST"])
+def leave_lobby():
+    data = get_json()
+    if not data:
+        return jsonify({"message": "JSON mancante"}), 400
+        
+    user_id = data.get("user_id")
+    if not user_id:
+        return jsonify({"message": "User ID mancante"}), 400
+        
+    user = User.query.get(user_id)
+    if not user:
+        return jsonify({"message": "Utente non trovato"}), 404
+
+    lobby_id = user.lobby_id
+    if not lobby_id:
+         return jsonify({"message": "Utente non è in una lobby", "success": True}), 200
+
+    # Rimuovi utente dalla lobby
+    user.lobby_id = None
+    user.team = None
+    db.session.commit()
+    
+    # Controlla stato lobby
+    lobby = Lobby.query.get(lobby_id)
+    if lobby and lobby.status == "ACTIVE":
+        # Controlla se i requisiti minimi sono ancora soddisfatti (1 per team)
+        red_count = User.query.filter_by(lobby_id=lobby_id, team="RED").count()
+        blue_count = User.query.filter_by(lobby_id=lobby_id, team="BLUE").count()
+        
+        if red_count < 1 or blue_count < 1:
+            # Requisiti non soddisfatti -> Annulla partita
+            lobby.status = "WAITING"
+            # Cancella i target della lobby
+            Target.query.filter_by(lobby_id=lobby_id).delete()
+            db.session.commit()
+            return jsonify({"message": "Lobby lasciata. Partita annullata per mancanza giocatori.", "success": True}), 200
+
+    return jsonify({"message": "Lobby lasciata con successo", "success": True}), 200
+
 
 @app.route("/set_team", methods=["POST"])
 def set_team():

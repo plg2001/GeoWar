@@ -9,6 +9,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.*
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -24,6 +25,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
@@ -63,6 +65,8 @@ fun MapScreen(
     val targets by remember { derivedStateOf { mapViewModel.targets } }
     val nearbyTarget by remember { derivedStateOf { mapViewModel.nearbyTarget } }
     val otherPlayers by remember { derivedStateOf { mapViewModel.otherPlayers } }
+    val currentLobbyId by remember { derivedStateOf { mapViewModel.currentLobbyId } }
+    val gameCancelled by remember { derivedStateOf { mapViewModel.gameCancelled } }
     
     // Cooldown check helper
     val isTargetOnCooldown: (Int) -> Boolean = { id -> mapViewModel.isTargetOnCooldown(id) }
@@ -108,6 +112,27 @@ fun MapScreen(
 
     LaunchedEffect(Unit) {
         permissionLauncher.launch(Manifest.permission.ACCESS_FINE_LOCATION)
+    }
+    
+    // Handling Game Cancelled
+    if (gameCancelled) {
+        AlertDialog(
+            onDismissRequest = { /* Non dismissable, deve uscire */ },
+            title = { Text("Game Cancelled") },
+            text = { Text("Not enough players to continue (need at least 1 vs 1). returning to menu.") },
+            confirmButton = {
+                Button(
+                    onClick = { 
+                        mapViewModel.resetGameCancelled()
+                        mapViewModel.leaveLobby() 
+                        onLogout() 
+                    }, 
+                    colors = ButtonDefaults.buttonColors(containerColor = Color.Red)
+                ) { 
+                    Text("OK") 
+                }
+            }
+        )
     }
 
     if (hasPermission) {
@@ -312,7 +337,35 @@ fun MapScreen(
         }
 
         // --- UI OVERLAY ---
+        
+        // WAITING MESSAGE OVERLAY
+        if (targets.isEmpty() && playerPosition != null && !gameCancelled) {
+             Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color.Black.copy(alpha = 0.7f)),
+                contentAlignment = Alignment.Center
+            ) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    CircularProgressIndicator(color = Color.Yellow)
+                    Spacer(modifier = Modifier.height(24.dp))
+                    Text(
+                        text = "WAITING FOR OPPONENTS...",
+                        color = Color.Yellow,
+                        style = MaterialTheme.typography.headlineMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = "Need at least 1 RED and 1 BLUE player to start.",
+                        color = Color.White,
+                        style = MaterialTheme.typography.bodyLarge
+                    )
+                }
+            }
+        }
 
+        // TOP BAR
         Row(
             modifier = Modifier
                 .align(Alignment.TopCenter)
@@ -335,6 +388,25 @@ fun MapScreen(
                 modifier = Modifier.size(48.dp)
             ) {
                 Icon(Icons.AutoMirrored.Filled.ExitToApp, "Logout")
+            }
+        }
+        
+        // BOTTOM LEFT LOBBY ID
+        Box(
+            modifier = Modifier
+                .align(Alignment.BottomStart)
+                .padding(bottom = 120.dp, start = 16.dp) // Sopra al menu FAB
+        ) {
+            if (currentLobbyId != null) {
+                Card(colors = CardDefaults.cardColors(containerColor = Color.Black.copy(alpha = 0.6f))) {
+                    Text(
+                        text = "LOBBY #$currentLobbyId",
+                        color = Color.White,
+                        fontWeight = FontWeight.Bold,
+                        style = MaterialTheme.typography.labelMedium,
+                        modifier = Modifier.padding(8.dp)
+                    )
+                }
             }
         }
         
@@ -471,7 +543,7 @@ fun MapScreen(
             }
         }
 
-        if (playerPosition != null) {
+        if (playerPosition != null && targets.isNotEmpty()) {
             Box(
                 modifier = Modifier
                     .align(Alignment.BottomEnd)
@@ -525,7 +597,13 @@ fun MapScreen(
                 title = { Text("Leave the game?") },
                 text = { Text("Are you sure you want to exit and return to the main menu?") },
                 confirmButton = {
-                    Button(onClick = { showLogoutDialog = false; onLogout() }, colors = ButtonDefaults.buttonColors(containerColor = Color.Red)) { Text("Leave") }
+                    Button(onClick = { 
+                            showLogoutDialog = false
+                            mapViewModel.leaveLobby()
+                            onLogout() 
+                        }, 
+                        colors = ButtonDefaults.buttonColors(containerColor = Color.Red)
+                    ) { Text("Leave") }
                 },
                 dismissButton = { TextButton({ showLogoutDialog = false }) { Text("Cancel") } }
             )

@@ -30,7 +30,8 @@ data class UserResponse(
     val score: Int = 0,
     val avatar_seed: String? = null,
     val lat: Double? = null,
-    val lon: Double? = null
+    val lon: Double? = null,
+    val lobby_id: Int? = null
 )
 
 data class LoginResponse(

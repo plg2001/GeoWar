@@ -11,6 +11,7 @@ import androidx.lifecycle.viewModelScope
 import com.example.geowar.data.auth.ApiClient
 import com.example.geowar.data.auth.GenerateRandomTargetsRequest
 import com.example.geowar.data.auth.HackRequest
+import com.example.geowar.data.auth.JoinLobbyRequest
 import com.example.geowar.data.auth.TargetResponse
 import com.example.geowar.data.auth.UpdatePositionRequest
 import com.example.geowar.data.auth.UserResponse
@@ -28,6 +29,9 @@ class MapViewModel(application: Application) : AndroidViewModel(application) {
 
     var avatarSeed by mutableStateOf<String?>(null)
         private set
+        
+    var currentLobbyId by mutableStateOf<Int?>(null)
+        private set
 
     var targets by mutableStateOf<List<TargetResponse>>(emptyList())
         private set
@@ -38,6 +42,10 @@ class MapViewModel(application: Application) : AndroidViewModel(application) {
 
     // Lista degli altri giocatori
     var otherPlayers by mutableStateOf<List<UserResponse>>(emptyList())
+        private set
+        
+    // Stato partita annullata
+    var gameCancelled by mutableStateOf(false)
         private set
 
     // Cooldown dei target: TargetID -> Timestamp scandenza
@@ -54,23 +62,24 @@ class MapViewModel(application: Application) : AndroidViewModel(application) {
     private val userRepository = UserRepository(ApiClient.authApi, application)
 
     init {
-        loadAvatar()
+        loadUserDetails()
         loadTargets() // Caricamento iniziale
         startPollingTargets() // Avvio polling periodico
         startHeartbeat()
         startFetchingPlayers()
     }
 
-    private fun loadAvatar() {
+    private fun loadUserDetails() {
         viewModelScope.launch {
             userRepository.getCurrentUserDetails().onSuccess {
                 avatarSeed = it.avatar_seed
+                currentLobbyId = it.lobby_id
             }
         }
     }
 
     fun reloadAvatar() {
-        loadAvatar()
+        loadUserDetails()
     }
 
     fun loadTargets() {
@@ -97,7 +106,14 @@ class MapViewModel(application: Application) : AndroidViewModel(application) {
                     // per aggiornare i colori se qualcuno li ha conquistati
                     val userId = userRepository.getUserId()
                     if (userId != -1) {
-                        targets = ApiClient.authApi.getTargets(userId)
+                        val newTargets = ApiClient.authApi.getTargets(userId)
+                        
+                        // Logica per rilevare partita annullata (targets spariti)
+                        if (targets.isNotEmpty() && newTargets.isEmpty()) {
+                            gameCancelled = true
+                        }
+                        
+                        targets = newTargets
                     }
                 } catch (e: Exception) {
                     e.printStackTrace()
@@ -137,6 +153,23 @@ class MapViewModel(application: Application) : AndroidViewModel(application) {
     fun stopMoving() {
         movementJob?.cancel()
     }
+    
+    fun leaveLobby() {
+        viewModelScope.launch {
+            val userId = userRepository.getUserId()
+            if (userId != -1) {
+                try {
+                    ApiClient.authApi.leaveLobby(JoinLobbyRequest(userId))
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                }
+            }
+        }
+    }
+    
+    fun resetGameCancelled() {
+        gameCancelled = false
+    }
 
     private fun startHeartbeat() {
         heartbeatJob?.cancel()
@@ -168,9 +201,9 @@ class MapViewModel(application: Application) : AndroidViewModel(application) {
                     val activeUsers = ApiClient.authApi.getUsersPositions()
                     val currentUserId = userRepository.getUserId()
                     
-                    // Filtra te stesso
+                    // Filtra te stesso e filtra per lobby
                     otherPlayers = activeUsers.filter { 
-                        it.id != currentUserId 
+                        it.id != currentUserId && it.lobby_id == currentLobbyId
                     }
                 } catch (e: Exception) {
                     e.printStackTrace()

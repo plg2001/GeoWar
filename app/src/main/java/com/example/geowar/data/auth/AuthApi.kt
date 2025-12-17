@@ -64,4 +64,7 @@ interface AuthApi {
     // LOBBY
     @POST("/lobby/join")
     suspend fun joinLobby(@Body request: JoinLobbyRequest): JoinLobbyResponse
+
+    @POST("/lobby/leave")
+    suspend fun leaveLobby(@Body request: JoinLobbyRequest): GenericResponse
 }
