@@ -29,13 +29,19 @@ class MapViewModel(application: Application) : AndroidViewModel(application) {
 
     var avatarSeed by mutableStateOf<String?>(null)
         private set
-        
+
     var currentLobbyId by mutableStateOf<Int?>(null)
         private set
 
     var targets by mutableStateOf<List<TargetResponse>>(emptyList())
         private set
-    
+
+    var targetsRed by mutableStateOf(0)
+        private set
+
+    var targetsBlue by mutableStateOf(0)
+        private set
+
     // Variabile per il target vicino (entro 20 metri)
     var nearbyTarget by mutableStateOf<TargetResponse?>(null)
         private set
@@ -43,7 +49,7 @@ class MapViewModel(application: Application) : AndroidViewModel(application) {
     // Lista degli altri giocatori
     var otherPlayers by mutableStateOf<List<UserResponse>>(emptyList())
         private set
-        
+
     // Stato partita annullata
     var gameCancelled by mutableStateOf(false)
         private set
@@ -56,7 +62,8 @@ class MapViewModel(application: Application) : AndroidViewModel(application) {
     private var heartbeatJob: Job? = null
     private var playersFetcherJob: Job? = null
     private var targetsPollingJob: Job? = null // Nuovo Job per aggiornare i target
-    
+    private var lobbyInfoJob: Job? = null
+
     private val moveSpeed = 0.0001 // Circa 1m per tick (50ms)
 
     private val userRepository = UserRepository(ApiClient.authApi, application)
@@ -67,6 +74,7 @@ class MapViewModel(application: Application) : AndroidViewModel(application) {
         startPollingTargets() // Avvio polling periodico
         startHeartbeat()
         startFetchingPlayers()
+        startPollingLobbyInfo()
     }
 
     private fun loadUserDetails() {
@@ -96,7 +104,7 @@ class MapViewModel(application: Application) : AndroidViewModel(application) {
             }
         }
     }
-    
+
     private fun startPollingTargets() {
         targetsPollingJob?.cancel()
         targetsPollingJob = viewModelScope.launch {
@@ -107,18 +115,38 @@ class MapViewModel(application: Application) : AndroidViewModel(application) {
                     val userId = userRepository.getUserId()
                     if (userId != -1) {
                         val newTargets = ApiClient.authApi.getTargets(userId)
-                        
+
                         // Logica per rilevare partita annullata (targets spariti)
                         if (targets.isNotEmpty() && newTargets.isEmpty()) {
                             gameCancelled = true
                         }
-                        
+
                         targets = newTargets
                     }
                 } catch (e: Exception) {
                     e.printStackTrace()
                 }
-                delay(5000) 
+                delay(5000)
+            }
+        }
+    }
+
+    private fun startPollingLobbyInfo() {
+        lobbyInfoJob?.cancel()
+        lobbyInfoJob = viewModelScope.launch {
+            while (isActive) {
+                try {
+                    currentLobbyId?.let {
+                        val lobbyInfo = ApiClient.authApi.getLobbies().find { lobby -> lobby.id == it }
+                        lobbyInfo?.let {
+                            targetsRed = lobbyInfo.targetsRed
+                            targetsBlue = lobbyInfo.targetsBlue
+                        }
+                    }
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                }
+                delay(5000)
             }
         }
     }
@@ -141,7 +169,7 @@ class MapViewModel(application: Application) : AndroidViewModel(application) {
                     val newLng = currentPos.longitude + (dx * moveSpeed)
                     val newPos = LatLng(newLat, newLng)
                     playerPosition = newPos
-                    
+
                     // Controllo prossimità ogni volta che ci muoviamo
                     checkProximityToTargets(newPos)
                 }
@@ -153,7 +181,7 @@ class MapViewModel(application: Application) : AndroidViewModel(application) {
     fun stopMoving() {
         movementJob?.cancel()
     }
-    
+
     fun leaveLobby() {
         viewModelScope.launch {
             val userId = userRepository.getUserId()
@@ -166,7 +194,7 @@ class MapViewModel(application: Application) : AndroidViewModel(application) {
             }
         }
     }
-    
+
     fun resetGameCancelled() {
         gameCancelled = false
     }
@@ -200,9 +228,9 @@ class MapViewModel(application: Application) : AndroidViewModel(application) {
                     // Usiamo users_positions che è l'endpoint corretto per tutti gli utenti, non solo admin
                     val activeUsers = ApiClient.authApi.getUsersPositions()
                     val currentUserId = userRepository.getUserId()
-                    
+
                     // Filtra te stesso e filtra per lobby
-                    otherPlayers = activeUsers.filter { 
+                    otherPlayers = activeUsers.filter {
                         it.id != currentUserId && it.lobby_id == currentLobbyId
                     }
                 } catch (e: Exception) {
@@ -232,12 +260,12 @@ class MapViewModel(application: Application) : AndroidViewModel(application) {
                 break // Trovato uno, usciamo
             }
         }
-        
+
         if (foundTarget != null) {
             nearbyTarget = foundTarget
         }
     }
-    
+
     fun clearNearbyTarget() {
         nearbyTarget = null
     }
@@ -248,16 +276,16 @@ class MapViewModel(application: Application) : AndroidViewModel(application) {
             val userId = userRepository.getUserId()
             if (userId != -1) {
                 try {
-                    ApiClient.authApi.hackTarget(HackRequest(userId, targetId)) 
+                    ApiClient.authApi.hackTarget(HackRequest(userId, targetId))
                     // Ricarica immediatamente i target per aggiornare il colore sulla mappa
-                    loadTargets() 
+                    loadTargets()
                 } catch (e: Exception) {
                     e.printStackTrace()
                 }
             }
         }
     }
-    
+
     // Gestione Cooldown
     fun setTargetCooldown(targetId: Int, durationMillis: Long) {
         _targetCooldowns[targetId] = System.currentTimeMillis() + durationMillis
@@ -291,5 +319,6 @@ class MapViewModel(application: Application) : AndroidViewModel(application) {
         heartbeatJob?.cancel()
         playersFetcherJob?.cancel()
         targetsPollingJob?.cancel()
+        lobbyInfoJob?.cancel()
     }
 }

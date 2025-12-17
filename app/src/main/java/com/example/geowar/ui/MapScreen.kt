@@ -65,19 +65,21 @@ fun MapScreen(
     val playerPosition = mapViewModel.playerPosition
     val avatarSeed by remember { derivedStateOf { mapViewModel.avatarSeed } }
     val targets by remember { derivedStateOf { mapViewModel.targets } }
+    val targetsRed by remember { derivedStateOf { mapViewModel.targetsRed } }
+    val targetsBlue by remember { derivedStateOf { mapViewModel.targetsBlue } }
     val nearbyTarget by remember { derivedStateOf { mapViewModel.nearbyTarget } }
     val otherPlayers by remember { derivedStateOf { mapViewModel.otherPlayers } }
     val currentLobbyId by remember { derivedStateOf { mapViewModel.currentLobbyId } }
     val gameCancelled by remember { derivedStateOf { mapViewModel.gameCancelled } }
-    
+
     var hasPermission by remember { mutableStateOf(false) }
     var showLogoutDialog by remember { mutableStateOf(false) }
     var isFabMenuExpanded by remember { mutableStateOf(false) }
-    
+
     var showMinigame by remember { mutableStateOf(false) }
     var currentMinigameTargetName by remember { mutableStateOf<String?>(null) }
     var currentMinigameColor by remember { mutableStateOf<String>("RED") }
-    
+
     var isFirstCameraMove by remember { mutableStateOf(true) }
 
     val permissionLauncher = rememberLauncherForActivityResult(
@@ -107,7 +109,7 @@ fun MapScreen(
     LaunchedEffect(Unit) {
         permissionLauncher.launch(Manifest.permission.ACCESS_FINE_LOCATION)
     }
-    
+
     if (gameCancelled) {
         CyberpunkDialog(
             title = "TRANSMISSION LOST",
@@ -164,7 +166,7 @@ fun MapScreen(
     val teamHue = if (team == "BLUE") BitmapDescriptorFactory.HUE_CYAN else BitmapDescriptorFactory.HUE_ROSE
 
     var avatarBitmap by remember { mutableStateOf<Bitmap?>(null) }
-    
+
     val otherPlayersBitmaps = remember { mutableStateMapOf<String, Pair<String, Bitmap>>() }
 
     LaunchedEffect(avatarSeed) {
@@ -177,12 +179,12 @@ fun MapScreen(
             context.imageLoader.enqueue(request)
         }
     }
-    
+
     LaunchedEffect(otherPlayers) {
         otherPlayers.forEach { player ->
             if (player.avatar_seed != null) {
                 val cached = otherPlayersBitmaps[player.username]
-                
+
                 if (cached == null || cached.first != player.avatar_seed) {
                     val request = ImageRequest.Builder(context)
                         .data("https://api.dicebear.com/7.x/pixel-art/png?seed=${player.avatar_seed}")
@@ -198,7 +200,7 @@ fun MapScreen(
 
     if (showMinigame) {
         val isNeutralTarget = nearbyTarget?.owner == "NEUTRAL"
-        
+
         if (isNeutralTarget) {
             ColorMinigameScreen(
                 targetColorName = currentMinigameColor,
@@ -260,12 +262,12 @@ fun MapScreen(
                         icon = BitmapDescriptorFactory.defaultMarker(teamHue)
                     )
                 }
-                
+
                 otherPlayers.forEach { player ->
                     val playerPos = LatLng(player.lat ?: 0.0, player.lon ?: 0.0)
                     val playerColor = if (player.team == "BLUE") BitmapDescriptorFactory.HUE_CYAN else if (player.team == "RED") BitmapDescriptorFactory.HUE_ROSE else BitmapDescriptorFactory.HUE_VIOLET
                     val playerCache = otherPlayersBitmaps[player.username]
-                    
+
                     if (playerCache != null) {
                         Marker(
                             state = MarkerState(position = playerPos),
@@ -289,7 +291,7 @@ fun MapScreen(
                         "RED" -> BitmapDescriptorFactory.HUE_RED
                         else -> BitmapDescriptorFactory.HUE_YELLOW // NEUTRAL
                     }
-                    
+
                     Marker(
                         state = MarkerState(position = LatLng(target.lat, target.lon)),
                         title = target.name,
@@ -309,7 +311,7 @@ fun MapScreen(
         }
 
         // --- UI OVERLAY ---
-        
+
         if (targets.isEmpty() && playerPosition != null && !gameCancelled) {
              Box(
                 modifier = Modifier
@@ -338,32 +340,64 @@ fun MapScreen(
             }
         }
 
-        Row(
+        Column(
             modifier = Modifier
                 .align(Alignment.TopCenter)
-                .padding(top = 48.dp, start = 16.dp, end = 16.dp),
-            verticalAlignment = Alignment.CenterVertically
+                .padding(top = 48.dp, start = 16.dp, end = 16.dp)
+                .fillMaxWidth(),
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Card(colors = CardDefaults.cardColors(containerColor = Color.Black.copy(alpha = 0.8f))) {
-                Text(
-                    text = "OPERATOR: TEAM $team",
-                    color = teamColor,
-                    fontWeight = FontWeight.Bold,
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
-                )
-            }
-            Spacer(modifier = Modifier.weight(1f))
-            FloatingActionButton(
-                onClick = { showLogoutDialog = true },
-                containerColor = MaterialTheme.colorScheme.errorContainer,
-                contentColor = MaterialTheme.colorScheme.onErrorContainer,
-                modifier = Modifier.size(48.dp),
-                elevation = FloatingActionButtonDefaults.elevation(0.dp)
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween,
+                modifier = Modifier.fillMaxWidth()
             ) {
-                Icon(Icons.AutoMirrored.Filled.ExitToApp, "Logout")
+                Card(colors = CardDefaults.cardColors(containerColor = Color.Black.copy(alpha = 0.8f))) {
+                    Text(
+                        text = "OPERATOR: TEAM $team",
+                        color = teamColor,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+                    )
+                }
+                FloatingActionButton(
+                    onClick = { showLogoutDialog = true },
+                    containerColor = MaterialTheme.colorScheme.errorContainer,
+                    contentColor = MaterialTheme.colorScheme.onErrorContainer,
+                    modifier = Modifier.size(48.dp),
+                    elevation = FloatingActionButtonDefaults.elevation(0.dp)
+                ) {
+                    Icon(Icons.AutoMirrored.Filled.ExitToApp, "Logout")
+                }
+            }
+            Spacer(modifier = Modifier.height(16.dp))
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.Center,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Card(
+                    colors = CardDefaults.cardColors(containerColor = Color.Blue.copy(alpha = 0.8f)),
+                    modifier = Modifier.padding(end = 8.dp)
+                ) {
+                    Text(
+                        text = "BLUE: $targetsBlue",
+                        color = Color.White,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+                    )
+                }
+                Card(colors = CardDefaults.cardColors(containerColor = Color.Red.copy(alpha = 0.8f))) {
+                    Text(
+                        text = "RED: $targetsRed",
+                        color = Color.White,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+                    )
+                }
             }
         }
-        
+
         Box(
             modifier = Modifier
                 .align(Alignment.BottomStart)
@@ -381,7 +415,7 @@ fun MapScreen(
                 }
             }
         }
-        
+
         AnimatedVisibility(
             visible = nearbyTarget != null,
             enter = scaleIn() + fadeIn(),
@@ -400,7 +434,7 @@ fun MapScreen(
                     isCooldown -> "SYSTEM LOCKED (COOLDOWN)"
                     else -> "HACK SYSTEM (START)"
                 }
-                
+
                 val buttonColor = when {
                     isNeutral -> Color.Yellow
                     isOwned -> Color.Green
@@ -434,9 +468,9 @@ fun MapScreen(
                                 Icon(Icons.Default.Close, contentDescription = "Close", tint = Color.White)
                             }
                         }
-                        
+
                         Spacer(modifier = Modifier.height(16.dp))
-                        
+
                         Text(text = "You entered the contested zone of:", color = Color.White)
                         Text(
                             text = target.name,
@@ -444,7 +478,7 @@ fun MapScreen(
                             fontWeight = FontWeight.Bold,
                             style = MaterialTheme.typography.headlineSmall
                         )
-                        
+
                         if (isEnemy) {
                             Text(
                                 text = "OWNER: ${target.owner}",
@@ -473,9 +507,9 @@ fun MapScreen(
                                 modifier = Modifier.padding(top = 8.dp)
                             )
                         }
-                        
+
                         Spacer(modifier = Modifier.height(24.dp))
-                        
+
                         if (isOwned) {
                             Text("Zone already under control.", color = Color.Green)
                         } else {
