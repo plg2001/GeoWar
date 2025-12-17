@@ -63,6 +63,9 @@ fun MapScreen(
     val targets by remember { derivedStateOf { mapViewModel.targets } }
     val nearbyTarget by remember { derivedStateOf { mapViewModel.nearbyTarget } }
     val otherPlayers by remember { derivedStateOf { mapViewModel.otherPlayers } }
+    
+    // Cooldown check helper
+    val isTargetOnCooldown: (Int) -> Boolean = { id -> mapViewModel.isTargetOnCooldown(id) }
 
     var hasPermission by remember { mutableStateOf(false) }
     var showLogoutDialog by remember { mutableStateOf(false) }
@@ -217,7 +220,13 @@ fun MapScreen(
                     mapViewModel.clearNearbyTarget()
                     Toast.makeText(context, "HACK COMPLETED!", Toast.LENGTH_SHORT).show()
                 },
-                onLose = {
+                onLose = { shouldCooldown ->
+                    if (shouldCooldown) {
+                        nearbyTarget?.let { target ->
+                            mapViewModel.setTargetCooldown(target.id, 2 * 60 * 1000) // 2 minuti
+                        }
+                        Toast.makeText(context, "System Locked! Cooldown: 2m", Toast.LENGTH_SHORT).show()
+                    }
                     showMinigame = false
                     currentMinigameTargetName = null
                 }
@@ -340,18 +349,21 @@ fun MapScreen(
                 val isNeutral = target.owner == "NEUTRAL"
                 val isEnemy = target.owner != team && !isNeutral
                 val isOwned = target.owner == team
+                val isCooldown = isTargetOnCooldown(target.id)
 
                 // Testo e colore pulsante
                 val buttonText = when {
                     isNeutral -> "START COLOR SCAN"
-                    isEnemy -> "HACK SYSTEM (START)"
-                    else -> "SECURE ZONE"
+                    isOwned -> "SECURE ZONE"
+                    isCooldown -> "SYSTEM LOCKED (COOLDOWN)"
+                    else -> "HACK SYSTEM (START)"
                 }
                 
                 val buttonColor = when {
                     isNeutral -> Color.Yellow
-                    isEnemy -> Color.Red
-                    else -> Color.Green
+                    isOwned -> Color.Green
+                    isCooldown -> Color.Gray
+                    else -> Color.Red
                 }
 
                 Card(
@@ -439,9 +451,13 @@ fun MapScreen(
                                         currentMinigameTargetName = target.name
                                         showMinigame = true
                                     } else {
-                                        // Avvia minigioco accelerometro per Nemici
-                                        currentMinigameTargetName = target.name
-                                        showMinigame = true
+                                        if (isCooldown) {
+                                            Toast.makeText(context, "Access Denied: Security Cooldown Active", Toast.LENGTH_SHORT).show()
+                                        } else {
+                                            // Avvia minigioco accelerometro per Nemici
+                                            currentMinigameTargetName = target.name
+                                            showMinigame = true
+                                        }
                                     }
                                 },
                                 colors = ButtonDefaults.buttonColors(containerColor = buttonColor),

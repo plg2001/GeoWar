@@ -3,6 +3,7 @@ package com.example.geowar.ui
 import android.app.Application
 import android.location.Location
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.AndroidViewModel
@@ -38,6 +39,10 @@ class MapViewModel(application: Application) : AndroidViewModel(application) {
     // Lista degli altri giocatori
     var otherPlayers by mutableStateOf<List<UserResponse>>(emptyList())
         private set
+
+    // Cooldown dei target: TargetID -> Timestamp scandenza
+    private val _targetCooldowns = mutableStateMapOf<Int, Long>()
+    val targetCooldowns: Map<Int, Long> = _targetCooldowns
 
     private var movementJob: Job? = null
     private var heartbeatJob: Job? = null
@@ -189,8 +194,6 @@ class MapViewModel(application: Application) : AndroidViewModel(application) {
         
         if (foundTarget != null) {
             nearbyTarget = foundTarget
-            // RIMOSSO: hackTarget(foundTarget.id) -> L'hack automatico è stato rimosso
-            // Ora l'hack deve essere chiamato esplicitamente dopo il minigioco
         }
     }
     
@@ -212,6 +215,16 @@ class MapViewModel(application: Application) : AndroidViewModel(application) {
                 }
             }
         }
+    }
+    
+    // Gestione Cooldown
+    fun setTargetCooldown(targetId: Int, durationMillis: Long) {
+        _targetCooldowns[targetId] = System.currentTimeMillis() + durationMillis
+    }
+
+    fun isTargetOnCooldown(targetId: Int): Boolean {
+        val expiration = _targetCooldowns[targetId] ?: return false
+        return System.currentTimeMillis() < expiration
     }
 
     private fun generateRandomTargets(currentLocation: LatLng) {

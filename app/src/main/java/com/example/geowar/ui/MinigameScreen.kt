@@ -23,6 +23,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -48,7 +49,7 @@ import kotlinx.coroutines.delay
 fun MinigameScreen(
     targetName: String = "UNKNOWN TARGET",
     onWin: () -> Unit,
-    onLose: () -> Unit
+    onLose: (Boolean) -> Unit // Boolean indicates if cooldown should be applied
 ) {
     val context = LocalContext.current
     val sensorManager = remember { context.getSystemService(Context.SENSOR_SERVICE) as SensorManager }
@@ -59,8 +60,13 @@ fun MinigameScreen(
     var velocity by remember { mutableStateOf(Offset.Zero) }
     var progress by remember { mutableFloatStateOf(0f) }
     var isRunning by remember { mutableStateOf(true) }
-    var showWinDialog by remember { mutableStateOf(false) } // Controllo del popup di vittoria
     
+    var showWinDialog by remember { mutableStateOf(false) } 
+    var showLoseDialog by remember { mutableStateOf(false) } 
+    
+    // Timer State
+    var timeLeft by remember { mutableLongStateOf(30L) }
+
     // Difficulty Settings
     var sensitivity by remember { mutableFloatStateOf(1.5f) } 
     val friction = 0.95f
@@ -86,6 +92,23 @@ fun MinigameScreen(
 
         onDispose {
             sensorManager.unregisterListener(listener)
+        }
+    }
+    
+    // Timer Loop
+    LaunchedEffect(isRunning) {
+        if (isRunning) {
+            val startTime = System.currentTimeMillis()
+            while (timeLeft > 0 && isRunning) {
+                delay(100) // Aggiorna ogni 100ms
+                val elapsed = (System.currentTimeMillis() - startTime) / 1000
+                timeLeft = (30 - elapsed).coerceAtLeast(0)
+                
+                if (timeLeft == 0L) {
+                    isRunning = false
+                    showLoseDialog = true
+                }
+            }
         }
     }
     
@@ -125,7 +148,7 @@ fun MinigameScreen(
              
              if (progress >= 1f) {
                  isRunning = false
-                 showWinDialog = true // Mostra il popup invece di uscire subito
+                 showWinDialog = true 
              }
         }
     }
@@ -140,6 +163,15 @@ fun MinigameScreen(
         ) {
             Text("DEFUSE THE BOMB!", color = Color.Red, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
             Text("Target: $targetName", color = Color.LightGray, style = MaterialTheme.typography.bodyMedium)
+            
+            // Timer Display
+            Text(
+                text = "Time Left: ${timeLeft}s", 
+                color = if (timeLeft <= 5) Color.Red else Color.White,
+                style = MaterialTheme.typography.headlineMedium,
+                fontWeight = FontWeight.Bold
+            )
+            
             Text("Keep the ball inside the blue circle", color = Color.White)
             
             Spacer(modifier = Modifier.height(20.dp))
@@ -207,12 +239,12 @@ fun MinigameScreen(
                 }
             }
             
-            Button(onClick = onLose) { 
+            Button(onClick = { onLose(false) }) { 
                 Text("Give Up (Exit)")
             }
         }
 
-        // --- POPUP VITTORIA (STILE GEO-WAR) ---
+        // --- POPUP VITTORIA ---
         AnimatedVisibility(
             visible = showWinDialog,
             enter = scaleIn() + fadeIn(),
@@ -281,6 +313,75 @@ fun MinigameScreen(
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Text("RETURN TO MAP", color = Color.Black, fontWeight = FontWeight.Bold)
+                    }
+                }
+            }
+        }
+        
+        // --- POPUP SCONFITTA ---
+        AnimatedVisibility(
+            visible = showLoseDialog,
+            enter = scaleIn() + fadeIn(),
+            exit = scaleOut(),
+            modifier = Modifier.align(Alignment.Center)
+        ) {
+            Card(
+                colors = CardDefaults.cardColors(containerColor = Color.Black.copy(alpha = 0.9f)),
+                shape = RoundedCornerShape(16.dp),
+                modifier = Modifier
+                    .padding(32.dp)
+                    .fillMaxWidth()
+            ) {
+                Column(
+                    modifier = Modifier.padding(16.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    // Header
+                    Box(modifier = Modifier.fillMaxWidth()) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.align(Alignment.Center)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Warning,
+                                contentDescription = null,
+                                tint = Color.Red,
+                                modifier = Modifier.size(28.dp)
+                            )
+                            Spacer(modifier = Modifier.size(8.dp))
+                            Text(
+                                text = "HACK FAILED!",
+                                color = Color.Red,
+                                fontWeight = FontWeight.Bold,
+                                style = MaterialTheme.typography.titleLarge
+                            )
+                        }
+                    }
+                    
+                    Spacer(modifier = Modifier.height(16.dp))
+                    
+                    Text(
+                        text = "Time expired!",
+                        color = Color.White
+                    )
+                    
+                    Spacer(modifier = Modifier.height(16.dp))
+                    
+                    Text(
+                        text = "The system detected your intrusion. You must wait before retrying.",
+                        color = Color.LightGray,
+                        style = MaterialTheme.typography.bodyMedium,
+                        textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                    )
+
+                    Spacer(modifier = Modifier.height(24.dp))
+                    
+                    Button(
+                        onClick = { onLose(true) },
+                        colors = ButtonDefaults.buttonColors(containerColor = Color.Red),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text("RETURN TO MAP", color = Color.White, fontWeight = FontWeight.Bold)
                     }
                 }
             }
