@@ -2,8 +2,10 @@ package com.example.geowar.ui
 
 import android.Manifest
 import android.annotation.SuppressLint
-import android.graphics.Bitmap
+import android.graphics.*
+import android.graphics.drawable.BitmapDrawable
 import android.os.Looper
+import android.text.TextPaint
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -45,17 +47,17 @@ import com.google.android.gms.maps.model.LatLng
 import com.google.android.gms.maps.model.MapStyleOptions
 import com.google.maps.android.compose.*
 import kotlinx.coroutines.launch
+import kotlin.math.max
 import kotlin.random.Random
-import android.graphics.Canvas
-import android.graphics.Paint
-import android.graphics.Rect
 
-import android.graphics.*
+// --------------------------
+// Bitmap helper + cache model
+// --------------------------
 
-import android.graphics.*
-import android.text.TextPaint
-
-
+private data class AvatarCache(
+    val withName: Bitmap,
+    val withoutName: Bitmap
+)
 
 fun getAvatarWithBorderAndName(
     source: Bitmap,
@@ -63,13 +65,12 @@ fun getAvatarWithBorderAndName(
     username: String,
     showName: Boolean
 ): Bitmap {
-    val avatarSize = 110f // Dimensione fissa dell'avatar
+    val avatarSize = 110f
     val borderWidth = 8f
     val shadowRadius = 15f
     val fontSize = 28f
     val paddingBetween = 12f
 
-    // 1. Configurazione Paint Testo
     val textPaint = TextPaint().apply {
         color = android.graphics.Color.WHITE
         textSize = fontSize
@@ -79,11 +80,10 @@ fun getAvatarWithBorderAndName(
         setShadowLayer(8f, 0f, 0f, android.graphics.Color.BLACK)
     }
 
-    // 2. Calcolo dimensioni dinamiche
-    val textWidth = if (showName) textPaint.measureText(username.uppercase()) else 0f
-    val contentWidth = Math.max(avatarSize + (shadowRadius * 2), textWidth + 20f).toInt()
+    val name = username.uppercase()
+    val textWidth = if (showName) textPaint.measureText(name) else 0f
+    val contentWidth = max(avatarSize + (shadowRadius * 2), textWidth + 20f).toInt()
 
-    // Se non mostriamo il nome, l'altezza è solo quella dell'avatar + bagliore
     val contentHeight = if (showName) {
         (fontSize + paddingBetween + avatarSize + (shadowRadius * 2)).toInt()
     } else {
@@ -94,16 +94,13 @@ fun getAvatarWithBorderAndName(
     val canvas = Canvas(output)
     val centerX = contentWidth / 2f
 
-    // 3. Disegno del Nome (solo se richiesto)
     if (showName) {
-        canvas.drawText(username.uppercase(), centerX, fontSize, textPaint)
+        canvas.drawText(name, centerX, fontSize, textPaint)
     }
 
-    // 4. Posizionamento Avatar
     val avatarTop = if (showName) fontSize + paddingBetween + shadowRadius else shadowRadius
     val avatarCenterY = avatarTop + (avatarSize / 2f)
 
-    // 5. Creazione Avatar Circolare
     val scaledSource = Bitmap.createScaledBitmap(source, avatarSize.toInt(), avatarSize.toInt(), true)
     val circularBitmap = Bitmap.createBitmap(avatarSize.toInt(), avatarSize.toInt(), Bitmap.Config.ARGB_8888)
     val canvasCircle = Canvas(circularBitmap)
@@ -113,7 +110,6 @@ fun getAvatarWithBorderAndName(
     canvasCircle.clipPath(path)
     canvasCircle.drawBitmap(scaledSource, 0f, 0f, null)
 
-    // 6. Effetto Glow e Bordo
     val paintGlow = Paint().apply {
         color = teamColor
         isAntiAlias = true
@@ -123,7 +119,6 @@ fun getAvatarWithBorderAndName(
     }
     canvas.drawCircle(centerX, avatarCenterY, avatarSize / 2f, paintGlow)
 
-    // Bordo solido per pulizia
     val paintBorder = Paint().apply {
         color = teamColor
         isAntiAlias = true
@@ -132,11 +127,16 @@ fun getAvatarWithBorderAndName(
     }
     canvas.drawCircle(centerX, avatarCenterY, avatarSize / 2f, paintBorder)
 
-    // 7. Overlay dell'avatar
-    canvas.drawBitmap(circularBitmap, centerX - (avatarSize / 2f), avatarCenterY - (avatarSize / 2f), null)
+    canvas.drawBitmap(
+        circularBitmap,
+        centerX - (avatarSize / 2f),
+        avatarCenterY - (avatarSize / 2f),
+        null
+    )
 
     return output
 }
+
 @SuppressLint("MissingPermission")
 @Composable
 fun MapScreen(
@@ -147,11 +147,14 @@ fun MapScreen(
 ) {
     val context = LocalContext.current
     val mapViewModel: MapViewModel = viewModel()
+
     val customMapStyle = remember {
         MapStyleOptions.loadRawResourceStyle(context, R.raw.map_style)
     }
 
     val fusedLocationClient = remember { LocationServices.getFusedLocationProviderClient(context) }
+
+    // --- ViewModel state (come nel tuo codice) ---
     val playerPosition = mapViewModel.playerPosition
     val avatarSeed by remember { derivedStateOf { mapViewModel.avatarSeed } }
     val targets by remember { derivedStateOf { mapViewModel.targets } }
@@ -162,13 +165,14 @@ fun MapScreen(
     val currentLobbyId by remember { derivedStateOf { mapViewModel.currentLobbyId } }
     val gameCancelled by remember { derivedStateOf { mapViewModel.gameCancelled } }
 
+    // --- UI state ---
     var hasPermission by remember { mutableStateOf(false) }
     var showLogoutDialog by remember { mutableStateOf(false) }
     var isFabMenuExpanded by remember { mutableStateOf(false) }
 
     var showMinigame by remember { mutableStateOf(false) }
     var currentMinigameTargetName by remember { mutableStateOf<String?>(null) }
-    var currentMinigameColor by remember { mutableStateOf<String>("RED") }
+    var currentMinigameColor by remember { mutableStateOf("RED") }
 
     var isFirstCameraMove by remember { mutableStateOf(true) }
 
@@ -182,14 +186,12 @@ fun MapScreen(
     }
 
     val coroutineScope = rememberCoroutineScope()
-    // --- LOGICA DI VISIBILITÀ AGGIORNATA ---
+
+    // --- Zoom derived state ---
     val currentZoom by remember { derivedStateOf { cameraPositionState.position.zoom } }
+    val shouldShowNames by remember { derivedStateOf { currentZoom > 15f } }
+    val markerAlpha by remember { derivedStateOf { if (currentZoom < 13f) 0.5f else 1.0f } }
 
-// Adesso il nome appare molto prima (Zoom 15 invece di 18)
-    val shouldShowNames = currentZoom > 15f
-
-// La trasparenza scatta solo quando la visuale è molto ampia (Zoom 13)
-    val markerAlpha = if (currentZoom < 13f) 0.5f else 1.0f
     val lifecycleOwner = LocalLifecycleOwner.current
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
@@ -198,15 +200,14 @@ fun MapScreen(
             }
         }
         lifecycleOwner.lifecycle.addObserver(observer)
-        onDispose {
-            lifecycleOwner.lifecycle.removeObserver(observer)
-        }
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
 
     LaunchedEffect(Unit) {
         permissionLauncher.launch(Manifest.permission.ACCESS_FINE_LOCATION)
     }
 
+    // --- Game cancelled dialog ---
     if (gameCancelled) {
         CyberpunkDialog(
             title = "TRANSMISSION LOST",
@@ -217,12 +218,13 @@ fun MapScreen(
                 mapViewModel.leaveLobby()
                 onLogout()
             },
-            onDismiss = { /* Non dismissable */ },
+            onDismiss = { /* non dismissable */ },
             icon = Icons.Default.WarningAmber,
             titleColor = MaterialTheme.colorScheme.error
         )
     }
 
+    // --- Location updates ---
     if (hasPermission) {
         val locationRequest = remember {
             LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, 5000L).apply {
@@ -240,7 +242,11 @@ fun MapScreen(
         }
 
         DisposableEffect(fusedLocationClient) {
-            fusedLocationClient.requestLocationUpdates(locationRequest, locationCallback, Looper.getMainLooper())
+            fusedLocationClient.requestLocationUpdates(
+                locationRequest,
+                locationCallback,
+                Looper.getMainLooper()
+            )
             onDispose {
                 fusedLocationClient.removeLocationUpdates(locationCallback)
                 mapViewModel.stopMoving()
@@ -248,6 +254,7 @@ fun MapScreen(
         }
     }
 
+    // --- Camera follow player (leggero) ---
     LaunchedEffect(playerPosition) {
         playerPosition?.let {
             if (isFirstCameraMove) {
@@ -261,46 +268,73 @@ fun MapScreen(
 
     val teamColor = if (team == "BLUE") Color(0xFF00E5FF) else Color(0xFFFF4081)
     val teamHue = if (team == "BLUE") BitmapDescriptorFactory.HUE_CYAN else BitmapDescriptorFactory.HUE_ROSE
+    val myColorInt = remember(team) { if (team == "BLUE") 0xFF00E5FF.toInt() else 0xFFFF4081.toInt() }
 
-    var avatarBitmap by remember { mutableStateOf<Bitmap?>(null) }
+    // --------------------------
+    // ✅ AVATAR CACHE (NO LAG)
+    // --------------------------
 
-    val otherPlayersBitmaps = remember { mutableStateMapOf<String, Pair<String, Bitmap>>() }
+    // Mio avatar: 2 bitmap (con nome / senza nome) create UNA volta per seed
+    var myAvatarCache by remember { mutableStateOf<AvatarCache?>(null) }
 
-    LaunchedEffect(avatarSeed, shouldShowNames) {
+    LaunchedEffect(avatarSeed, username, myColorInt) {
+        myAvatarCache = null
         avatarSeed?.let { seed ->
-            val colorInt = if (team == "BLUE") 0xFF00E5FF.toInt() else 0xFFFF4081.toInt()
             val request = ImageRequest.Builder(context)
                 .data("https://api.dicebear.com/7.x/pixel-art/png?seed=$seed")
                 .allowHardware(false)
                 .target { result ->
-                    val original = (result as android.graphics.drawable.BitmapDrawable).bitmap
-                    avatarBitmap = getAvatarWithBorderAndName(original, colorInt, username, shouldShowNames)
-                }.build()
+                    val original = (result as BitmapDrawable).bitmap
+                    myAvatarCache = AvatarCache(
+                        withName = getAvatarWithBorderAndName(original, myColorInt, username, true),
+                        withoutName = getAvatarWithBorderAndName(original, myColorInt, username, false)
+                    )
+                }
+                .build()
             context.imageLoader.enqueue(request)
         }
     }
 
-// 3. Ricarica gli avatar degli altri giocatori
-    LaunchedEffect(otherPlayers, shouldShowNames) {
-        otherPlayers.forEach { player ->
-            if (player.avatar_seed != null) {
-                val otherTeamColor = if (player.team == "BLUE") 0xFF00E5FF.toInt() else 0xFFFF4081.toInt()
-                val request = ImageRequest.Builder(context)
-                    .data("https://api.dicebear.com/7.x/pixel-art/png?seed=${player.avatar_seed}")
-                    .allowHardware(false)
-                    .target { result ->
-                        val original = (result as android.graphics.drawable.BitmapDrawable).bitmap
-                        val bitmapWithBorder = getAvatarWithBorderAndName(original, otherTeamColor, player.username, shouldShowNames)
-                        otherPlayersBitmaps[player.username] = Pair(player.avatar_seed!!, bitmapWithBorder)
-                    }.build()
-                context.imageLoader.enqueue(request)
-            }
+    // Altri giocatori: cache per username -> (seed, AvatarCache)
+    val otherPlayersCache = remember { mutableStateMapOf<String, Pair<String, AvatarCache>>() }
+
+    LaunchedEffect(otherPlayers) {
+        otherPlayers.forEach { p ->
+            val seed = p.avatar_seed ?: return@forEach
+            val key = p.username
+
+            val existing = otherPlayersCache[key]
+            if (existing != null && existing.first == seed) return@forEach // già ok
+
+            val colorInt = if (p.team == "BLUE") 0xFF00E5FF.toInt() else 0xFFFF4081.toInt()
+
+            val request = ImageRequest.Builder(context)
+                .data("https://api.dicebear.com/7.x/pixel-art/png?seed=$seed")
+                .allowHardware(false)
+                .target { result ->
+                    val original = (result as BitmapDrawable).bitmap
+                    val cache = AvatarCache(
+                        withName = getAvatarWithBorderAndName(original, colorInt, p.username, true),
+                        withoutName = getAvatarWithBorderAndName(original, colorInt, p.username, false)
+                    )
+                    otherPlayersCache[key] = seed to cache
+                }
+                .build()
+
+            context.imageLoader.enqueue(request)
         }
     }
 
+    // Bitmap scelta in base allo zoom: istantaneo (non crea bitmap)
+    val myMarkerBitmap: Bitmap? = remember(myAvatarCache, shouldShowNames) {
+        myAvatarCache?.let { if (shouldShowNames) it.withName else it.withoutName }
+    }
+
+    // --------------------------
+    // Minigame overlay (come tuo)
+    // --------------------------
     if (showMinigame) {
         val isNeutralTarget = nearbyTarget?.owner == "NEUTRAL"
-
         if (isNeutralTarget) {
             ColorMinigameScreen(
                 targetColorName = currentMinigameColor,
@@ -317,7 +351,7 @@ fun MapScreen(
                 }
             )
         } else {
-             MinigameScreen(
+            MinigameScreen(
                 targetName = currentMinigameTargetName ?: "TARGET",
                 onWin = {
                     nearbyTarget?.let { target -> mapViewModel.conquerTarget(target.id) }
@@ -329,7 +363,7 @@ fun MapScreen(
                 onLose = { shouldCooldown ->
                     if (shouldCooldown) {
                         nearbyTarget?.let { target ->
-                            mapViewModel.setTargetCooldown(target.id, 2 * 60 * 1000) // 2 minuti
+                            mapViewModel.setTargetCooldown(target.id, 2 * 60 * 1000)
                         }
                         Toast.makeText(context, "System Locked! Cooldown: 2m", Toast.LENGTH_SHORT).show()
                     }
@@ -341,53 +375,70 @@ fun MapScreen(
         return
     }
 
+    // --------------------------
+    // UI + MAP
+    // --------------------------
+
     Box(modifier = Modifier.fillMaxSize()) {
         if (playerPosition != null) {
             GoogleMap(
                 modifier = Modifier.fillMaxSize(),
                 cameraPositionState = cameraPositionState,
-                properties = MapProperties(isMyLocationEnabled = false, mapStyleOptions = customMapStyle),
-                uiSettings = MapUiSettings(zoomControlsEnabled = false, myLocationButtonEnabled = false)
+                properties = MapProperties(
+                    isMyLocationEnabled = false,
+                    mapStyleOptions = customMapStyle
+                ),
+                uiSettings = MapUiSettings(
+                    zoomControlsEnabled = false,
+                    myLocationButtonEnabled = false
+                )
             ) {
-                if (avatarBitmap != null) {
+                // --- ME ---
+                if (myMarkerBitmap != null) {
                     Marker(
                         state = MarkerState(position = playerPosition),
-                        icon = BitmapDescriptorFactory.fromBitmap(avatarBitmap!!),
-                        alpha = markerAlpha, // Applica trasparenza
-                        anchor = if (shouldShowNames) androidx.compose.ui.geometry.Offset(0.5f, 0.8f)
-                        else androidx.compose.ui.geometry.Offset(0.5f, 0.5f)
+                        icon = BitmapDescriptorFactory.fromBitmap(myMarkerBitmap!!),
+                        alpha = markerAlpha,
+                        anchor = if (shouldShowNames)
+                            androidx.compose.ui.geometry.Offset(0.5f, 0.8f)
+                        else
+                            androidx.compose.ui.geometry.Offset(0.5f, 0.5f)
                     )
-                }else {
+                } else {
                     Marker(
                         state = MarkerState(position = playerPosition),
-                        title = "$username",
+                        title = username,
                         icon = BitmapDescriptorFactory.defaultMarker(teamHue)
                     )
                 }
 
+                // --- OTHER PLAYERS ---
+                otherPlayers.forEach { p ->
+                    val pos = LatLng(p.lat ?: 0.0, p.lon ?: 0.0)
+                    val cachePair = otherPlayersCache[p.username]
+                    val cache = cachePair?.second
+                    val bmp = if (shouldShowNames) cache?.withName else cache?.withoutName
 
-
-                // --- ALTRI GIOCATORI ---
-                otherPlayers.forEach { player ->
-                    val playerPos = LatLng(player.lat ?: 0.0, player.lon ?: 0.0)
-                    otherPlayersBitmaps[player.username]?.second?.let { bitmap ->
+                    if (bmp != null) {
                         Marker(
-                            state = MarkerState(position = playerPos),
-                            icon = BitmapDescriptorFactory.fromBitmap(bitmap),
+                            state = MarkerState(position = pos),
+                            icon = BitmapDescriptorFactory.fromBitmap(bmp),
                             alpha = markerAlpha,
-                            anchor = if (shouldShowNames) androidx.compose.ui.geometry.Offset(0.5f, 0.65f)
-                            else androidx.compose.ui.geometry.Offset(0.5f, 0.5f)
+                            anchor = if (shouldShowNames)
+                                androidx.compose.ui.geometry.Offset(0.5f, 0.65f)
+                            else
+                                androidx.compose.ui.geometry.Offset(0.5f, 0.5f)
                         )
                     }
                 }
 
+                // --- TARGETS ---
                 targets.forEach { target ->
                     val targetColor = when (target.owner) {
                         "BLUE" -> BitmapDescriptorFactory.HUE_AZURE
                         "RED" -> BitmapDescriptorFactory.HUE_RED
-                        else -> BitmapDescriptorFactory.HUE_YELLOW // NEUTRAL
+                        else -> BitmapDescriptorFactory.HUE_YELLOW
                     }
-
                     Marker(
                         state = MarkerState(position = LatLng(target.lat, target.lon)),
                         title = target.name,
@@ -406,10 +457,9 @@ fun MapScreen(
             }
         }
 
-        // --- UI OVERLAY ---
-
+        // --- WAITING OVERLAY ---
         if (targets.isEmpty() && playerPosition != null && !gameCancelled) {
-             Box(
+            Box(
                 modifier = Modifier
                     .fillMaxSize()
                     .background(Color.Black.copy(alpha = 0.7f)),
@@ -436,6 +486,7 @@ fun MapScreen(
             }
         }
 
+        // --- TOP HUD ---
         Column(
             modifier = Modifier
                 .align(Alignment.TopCenter)
@@ -462,11 +513,11 @@ fun MapScreen(
                     contentColor = MaterialTheme.colorScheme.onErrorContainer,
                     modifier = Modifier.size(48.dp),
                     elevation = FloatingActionButtonDefaults.elevation(0.dp)
-                ) {
-                    Icon(Icons.AutoMirrored.Filled.ExitToApp, "Logout")
-                }
+                ) { Icon(Icons.AutoMirrored.Filled.ExitToApp, "Logout") }
             }
+
             Spacer(modifier = Modifier.height(16.dp))
+
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.Center,
@@ -494,6 +545,7 @@ fun MapScreen(
             }
         }
 
+        // --- LOBBY BADGE ---
         Box(
             modifier = Modifier
                 .align(Alignment.BottomStart)
@@ -512,6 +564,7 @@ fun MapScreen(
             }
         }
 
+        // --- NEARBY TARGET CARD ---
         AnimatedVisibility(
             visible = nearbyTarget != null,
             enter = scaleIn() + fadeIn(),
@@ -636,24 +689,25 @@ fun MapScreen(
             }
         }
 
+        // --- JOYSTICK ---
         if (playerPosition != null && targets.isNotEmpty()) {
             Box(
                 modifier = Modifier
                     .align(Alignment.BottomEnd)
                     .padding(32.dp)
             ) {
-                Joystick(onMove = { dx, dy ->
-                    mapViewModel.startMoving(dx, dy)
-                })
+                Joystick(onMove = { dx, dy -> mapViewModel.startMoving(dx, dy) })
             }
         }
 
+        // --- FAB MENU ---
         Box(
             modifier = Modifier
                 .align(Alignment.BottomStart)
                 .padding(start = 32.dp, bottom = 32.dp)
         ) {
             val rotation by animateFloatAsState(if (isFabMenuExpanded) 45f else 0f, label = "fab_rotation")
+
             Column(
                 horizontalAlignment = Alignment.Start,
                 verticalArrangement = Arrangement.spacedBy(24.dp, Alignment.Bottom)
@@ -668,24 +722,29 @@ fun MapScreen(
                         FabAction(icon = Icons.Default.MyLocation, label = "Center") {
                             playerPosition?.let {
                                 coroutineScope.launch {
-                                    cameraPositionState.animate(CameraUpdateFactory.newLatLngZoom(it, 20f), 500)
+                                    cameraPositionState.animate(
+                                        CameraUpdateFactory.newLatLngZoom(it, 20f),
+                                        500
+                                    )
                                 }
                             }
                         }
                     }
                 }
+
                 FloatingActionButton(
                     onClick = { isFabMenuExpanded = !isFabMenuExpanded },
                     containerColor = MaterialTheme.colorScheme.primary,
-                    contentColor = MaterialTheme.colorScheme.onPrimary,
+                    contentColor = MaterialTheme.colorScheme.onPrimary
                 ) {
                     Icon(Icons.Default.Add, "Open actions menu", modifier = Modifier.rotate(rotation))
                 }
             }
         }
 
+        // --- LOGOUT DIALOG ---
         if (showLogoutDialog) {
-             CyberpunkDialog(
+            CyberpunkDialog(
                 title = "DISCONNECT?",
                 message = "Are you sure you want to disconnect and return to lobby selection?",
                 confirmText = "LEAVE MATCH",
@@ -704,14 +763,21 @@ fun MapScreen(
 
 @Composable
 private fun FabAction(icon: ImageVector, label: String, onClick: () -> Unit) {
-    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
         SmallFloatingActionButton(
             onClick = onClick,
             shape = CircleShape,
             containerColor = MaterialTheme.colorScheme.secondary,
             contentColor = MaterialTheme.colorScheme.onSecondary
         ) { Icon(imageVector = icon, contentDescription = label) }
-        Card(shape = MaterialTheme.shapes.medium, colors = CardDefaults.cardColors(containerColor = Color.Black.copy(alpha = 0.7f))) {
+
+        Card(
+            shape = MaterialTheme.shapes.medium,
+            colors = CardDefaults.cardColors(containerColor = Color.Black.copy(alpha = 0.7f))
+        ) {
             Text(
                 text = label,
                 modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
@@ -738,9 +804,7 @@ fun CyberpunkDialog(
         Card(
             shape = MaterialTheme.shapes.large,
             border = BorderStroke(1.dp, titleColor),
-            colors = CardDefaults.cardColors(
-                containerColor = Color.Black.copy(alpha = 0.9f)
-            )
+            colors = CardDefaults.cardColors(containerColor = Color.Black.copy(alpha = 0.9f))
         ) {
             Column(
                 modifier = Modifier.padding(24.dp),
@@ -750,12 +814,27 @@ fun CyberpunkDialog(
                     Icon(icon, contentDescription = null, tint = titleColor, modifier = Modifier.size(48.dp))
                     Spacer(modifier = Modifier.height(16.dp))
                 }
-                Text(text = title, style = MaterialTheme.typography.headlineSmall, color = titleColor, fontWeight = FontWeight.Bold)
+
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.headlineSmall,
+                    color = titleColor,
+                    fontWeight = FontWeight.Bold
+                )
+
                 Spacer(modifier = Modifier.height(16.dp))
-                Text(text = message, style = MaterialTheme.typography.bodyMedium, color = Color.White, textAlign = TextAlign.Center)
+
+                Text(
+                    text = message,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = Color.White,
+                    textAlign = TextAlign.Center
+                )
+
                 Spacer(modifier = Modifier.height(24.dp))
+
                 Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                     if (dismissText != null) {
+                    if (dismissText != null) {
                         OutlinedButton(onClick = onDismiss, modifier = Modifier.weight(1f)) {
                             Text(dismissText)
                         }
