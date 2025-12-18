@@ -59,6 +59,92 @@ private data class AvatarCache(
     val withoutName: Bitmap
 )
 
+
+fun getTargetWithBorder(
+    source: Bitmap,
+    teamColor: Int
+): Bitmap {
+    val iconSize = 90f
+    val borderWidth = 6f
+    val shadowRadius = 12f
+
+    val outputSize = (iconSize + shadowRadius * 2).toInt()
+    val output = Bitmap.createBitmap(outputSize, outputSize, Bitmap.Config.ARGB_8888)
+    val canvas = Canvas(output)
+
+    val center = outputSize / 2f
+
+    // --- scala mantenendo aspect ratio ---
+    val ratio = source.width.toFloat() / source.height.toFloat()
+    val targetW: Int
+    val targetH: Int
+
+    if (source.width > source.height) {
+        targetW = iconSize.toInt()
+        targetH = (iconSize / ratio).toInt()
+    } else {
+        targetH = iconSize.toInt()
+        targetW = (iconSize * ratio).toInt()
+    }
+
+    val scaled = Bitmap.createScaledBitmap(source, targetW, targetH, true)
+
+    val left = center - targetW / 2f
+    val top = center - targetH / 2f
+
+    // --- glow ---
+    val glowPaint = Paint().apply {
+        color = teamColor
+        isAntiAlias = true
+        style = Paint.Style.STROKE
+        strokeWidth = borderWidth
+        setShadowLayer(shadowRadius, 0f, 0f, teamColor)
+    }
+    canvas.drawCircle(center, center, iconSize / 2f, glowPaint)
+
+    // --- bordo ---
+    val borderPaint = Paint().apply {
+        color = teamColor
+        isAntiAlias = true
+        style = Paint.Style.STROKE
+        strokeWidth = borderWidth
+    }
+    canvas.drawCircle(center, center, iconSize / 2f, borderPaint)
+
+    // --- disegna torre ---
+    canvas.drawBitmap(scaled, left, top, null)
+
+    return output
+}
+
+
+fun resizedBitmapDescriptor(
+    context: android.content.Context,
+    resId: Int,
+    sizeDp: Int
+): com.google.android.gms.maps.model.BitmapDescriptor {
+    val density = context.resources.displayMetrics.density
+    val sizePx = (sizeDp * density).toInt()
+
+    val bitmap = BitmapFactory.decodeResource(context.resources, resId)
+    val ratio = bitmap.width.toFloat() / bitmap.height.toFloat()
+
+    val targetWidth: Int
+    val targetHeight: Int
+
+    if (bitmap.width > bitmap.height) {
+        targetWidth = sizePx
+        targetHeight = (sizePx / ratio).toInt()
+    } else {
+        targetHeight = sizePx
+        targetWidth = (sizePx * ratio).toInt()
+    }
+
+    val scaled = Bitmap.createScaledBitmap(bitmap, targetWidth, targetHeight, true)
+
+
+    return BitmapDescriptorFactory.fromBitmap(scaled)
+}
 fun getAvatarWithBorderAndName(
     source: Bitmap,
     teamColor: Int,
@@ -433,19 +519,32 @@ fun MapScreen(
                 }
 
                 // --- TARGETS ---
+                val torreRedIcon = remember {
+                    resizedBitmapDescriptor(context, R.drawable.torre_red, sizeDp = 200)
+                }
+                val torreBlueIcon = remember {
+                    resizedBitmapDescriptor(context, R.drawable.torre_blue, sizeDp = 200)
+                }
+                val torreNeutralIcon = remember {
+                    resizedBitmapDescriptor(context, R.drawable.torre_neutral, sizeDp = 200)
+                }
+
+
                 targets.forEach { target ->
-                    val targetColor = when (target.owner) {
-                        "BLUE" -> BitmapDescriptorFactory.HUE_AZURE
-                        "RED" -> BitmapDescriptorFactory.HUE_RED
-                        else -> BitmapDescriptorFactory.HUE_YELLOW
+                    val targetIcon = when (target.owner) {
+                        "BLUE" -> torreBlueIcon
+                        "RED" -> torreRedIcon
+                        else -> torreNeutralIcon
                     }
+
                     Marker(
                         state = MarkerState(position = LatLng(target.lat, target.lon)),
                         title = target.name,
                         snippet = "Owner: ${target.owner}",
-                        icon = BitmapDescriptorFactory.defaultMarker(targetColor)
+                        icon = targetIcon
                     )
                 }
+
             }
         } else {
             Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
