@@ -182,9 +182,14 @@ fun MapScreen(
     }
 
     val coroutineScope = rememberCoroutineScope()
+    // --- LOGICA DI VISIBILITÀ AGGIORNATA ---
     val currentZoom by remember { derivedStateOf { cameraPositionState.position.zoom } }
-    val shouldShowNames = currentZoom > 18f
-    val markerAlpha = if (currentZoom < 16f) 0.5f else 1.0f
+
+// Adesso il nome appare molto prima (Zoom 15 invece di 18)
+    val shouldShowNames = currentZoom > 15f
+
+// La trasparenza scatta solo quando la visuale è molto ampia (Zoom 13)
+    val markerAlpha = if (currentZoom < 13f) 0.5f else 1.0f
     val lifecycleOwner = LocalLifecycleOwner.current
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
@@ -360,15 +365,27 @@ fun MapScreen(
                     )
                 }
 
+                // --- PLAYER LOCALE ---
+                avatarBitmap?.let { bitmap ->
+                    Marker(
+                        state = MarkerState(position = playerPosition!!),
+                        icon = BitmapDescriptorFactory.fromBitmap(bitmap),
+                        alpha = markerAlpha,
+                        // 0.65f tiene il cerchio dell'avatar centrato sulla posizione GPS quando c'è il nome
+                        anchor = if (shouldShowNames) androidx.compose.ui.geometry.Offset(0.5f, 0.65f)
+                        else androidx.compose.ui.geometry.Offset(0.5f, 0.5f)
+                    )
+                }
+
+                // --- ALTRI GIOCATORI ---
                 otherPlayers.forEach { player ->
                     val playerPos = LatLng(player.lat ?: 0.0, player.lon ?: 0.0)
-                    val playerCache = otherPlayersBitmaps[player.username]
-                    if (playerCache != null) {
+                    otherPlayersBitmaps[player.username]?.second?.let { bitmap ->
                         Marker(
                             state = MarkerState(position = playerPos),
-                            icon = BitmapDescriptorFactory.fromBitmap(playerCache.second),
-                            alpha = markerAlpha, // Applica trasparenza
-                            anchor = if (shouldShowNames) androidx.compose.ui.geometry.Offset(0.5f, 0.8f)
+                            icon = BitmapDescriptorFactory.fromBitmap(bitmap),
+                            alpha = markerAlpha,
+                            anchor = if (shouldShowNames) androidx.compose.ui.geometry.Offset(0.5f, 0.65f)
                             else androidx.compose.ui.geometry.Offset(0.5f, 0.5f)
                         )
                     }
