@@ -47,6 +47,40 @@ import com.google.maps.android.compose.*
 import kotlinx.coroutines.launch
 import kotlin.random.Random
 
+
+import android.graphics.Canvas
+import android.graphics.Paint
+import android.graphics.Rect
+
+fun getAvatarWithBorder(source: Bitmap, teamColor: Int): Bitmap {
+    val borderWidth = 12 // Spessore del bordo in pixel
+    val size = source.width + (borderWidth * 2)
+    val output = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
+    val canvas = Canvas(output)
+
+    val paint = Paint().apply {
+        color = teamColor
+        style = Paint.Style.STROKE
+        strokeWidth = borderWidth.toFloat()
+        isAntiAlias = true
+    }
+
+    // Disegna l'immagine originale al centro
+    canvas.drawBitmap(source, borderWidth.toFloat(), borderWidth.toFloat(), null)
+
+    // Disegna il rettangolo del bordo
+    val rect = Rect(
+        borderWidth / 2,
+        borderWidth / 2,
+        size - (borderWidth / 2),
+        size - (borderWidth / 2)
+    )
+    canvas.drawRect(rect, paint)
+
+    return output
+}
+
+
 @SuppressLint("MissingPermission")
 @Composable
 fun MapScreen(
@@ -171,10 +205,14 @@ fun MapScreen(
 
     LaunchedEffect(avatarSeed) {
         avatarSeed?.let {
+            val colorInt = if (team == "BLUE") 0xFF00E5FF.toInt() else 0xFFFF4081.toInt()
             val request = ImageRequest.Builder(context)
                 .data("https://api.dicebear.com/7.x/pixel-art/png?seed=$it")
-                .target {
-                    avatarBitmap = (it as android.graphics.drawable.BitmapDrawable).bitmap
+                .allowHardware(false) // Necessario per manipolare il bitmap
+                .target { result ->
+                    val original = (result as android.graphics.drawable.BitmapDrawable).bitmap
+                    // Applichiamo il bordo qui
+                    avatarBitmap = getAvatarWithBorder(original, colorInt)
                 }.build()
             context.imageLoader.enqueue(request)
         }
@@ -184,13 +222,17 @@ fun MapScreen(
         otherPlayers.forEach { player ->
             if (player.avatar_seed != null) {
                 val cached = otherPlayersBitmaps[player.username]
-
                 if (cached == null || cached.first != player.avatar_seed) {
+                    // Determina il colore in base al team dell'altro giocatore
+                    val otherTeamColor = if (player.team == "BLUE") 0xFF00E5FF.toInt() else 0xFFFF4081.toInt()
+
                     val request = ImageRequest.Builder(context)
                         .data("https://api.dicebear.com/7.x/pixel-art/png?seed=${player.avatar_seed}")
-                        .target {
-                             val bitmap = (it as android.graphics.drawable.BitmapDrawable).bitmap
-                             otherPlayersBitmaps[player.username] = Pair(player.avatar_seed, bitmap)
+                        .allowHardware(false)
+                        .target { result ->
+                            val original = (result as android.graphics.drawable.BitmapDrawable).bitmap
+                            val bitmapWithBorder = getAvatarWithBorder(original, otherTeamColor)
+                            otherPlayersBitmaps[player.username] = Pair(player.avatar_seed!!, bitmapWithBorder)
                         }.build()
                     context.imageLoader.enqueue(request)
                 }
