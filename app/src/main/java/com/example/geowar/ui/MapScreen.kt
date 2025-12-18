@@ -55,17 +55,21 @@ import android.graphics.*
 import android.graphics.*
 import android.text.TextPaint
 
-import android.graphics.*
 
 
-fun getAvatarWithBorderAndName(source: Bitmap, teamColor: Int, username: String): Bitmap {
-    val avatarSize = 120f
+fun getAvatarWithBorderAndName(
+    source: Bitmap,
+    teamColor: Int,
+    username: String,
+    showName: Boolean
+): Bitmap {
+    val avatarSize = 110f // Dimensione fissa dell'avatar
     val borderWidth = 8f
     val shadowRadius = 15f
-    val fontSize = 30f
-    val paddingBetween = 15f // Spazio tra testo e avatar
+    val fontSize = 28f
+    val paddingBetween = 12f
 
-    // 1. Preparazione Paint per il testo per calcolarne l'ingombro
+    // 1. Configurazione Paint Testo
     val textPaint = TextPaint().apply {
         color = android.graphics.Color.WHITE
         textSize = fontSize
@@ -75,26 +79,31 @@ fun getAvatarWithBorderAndName(source: Bitmap, teamColor: Int, username: String)
         setShadowLayer(8f, 0f, 0f, android.graphics.Color.BLACK)
     }
 
-    val textWidth = textPaint.measureText(username.uppercase())
-
-    // 2. Calcolo dimensioni Bitmap (larghezza dinamica in base al nome)
+    // 2. Calcolo dimensioni dinamiche
+    val textWidth = if (showName) textPaint.measureText(username.uppercase()) else 0f
     val contentWidth = Math.max(avatarSize + (shadowRadius * 2), textWidth + 20f).toInt()
-    val contentHeight = (fontSize + paddingBetween + avatarSize + (shadowRadius * 2)).toInt()
+
+    // Se non mostriamo il nome, l'altezza è solo quella dell'avatar + bagliore
+    val contentHeight = if (showName) {
+        (fontSize + paddingBetween + avatarSize + (shadowRadius * 2)).toInt()
+    } else {
+        (avatarSize + (shadowRadius * 2)).toInt()
+    }
 
     val output = Bitmap.createBitmap(contentWidth, contentHeight, Bitmap.Config.ARGB_8888)
     val canvas = Canvas(output)
-
     val centerX = contentWidth / 2f
 
-    // 3. DISEGNO DEL NOME (In alto, con spazio dedicato)
-    // Il testo viene disegnato partendo dalla sua baseline
-    canvas.drawText(username.uppercase(), centerX, fontSize, textPaint)
+    // 3. Disegno del Nome (solo se richiesto)
+    if (showName) {
+        canvas.drawText(username.uppercase(), centerX, fontSize, textPaint)
+    }
 
-    // 4. COORDINATE AVATAR (Sotto il testo)
-    val avatarTop = fontSize + paddingBetween + shadowRadius
+    // 4. Posizionamento Avatar
+    val avatarTop = if (showName) fontSize + paddingBetween + shadowRadius else shadowRadius
     val avatarCenterY = avatarTop + (avatarSize / 2f)
 
-    // 5. RITAGLIO AVATAR CIRCOLARE
+    // 5. Creazione Avatar Circolare
     val scaledSource = Bitmap.createScaledBitmap(source, avatarSize.toInt(), avatarSize.toInt(), true)
     val circularBitmap = Bitmap.createBitmap(avatarSize.toInt(), avatarSize.toInt(), Bitmap.Config.ARGB_8888)
     val canvasCircle = Canvas(circularBitmap)
@@ -104,7 +113,7 @@ fun getAvatarWithBorderAndName(source: Bitmap, teamColor: Int, username: String)
     canvasCircle.clipPath(path)
     canvasCircle.drawBitmap(scaledSource, 0f, 0f, null)
 
-    // 6. EFFETTO GLOW E BORDO (Attorno al cerchio)
+    // 6. Effetto Glow e Bordo
     val paintGlow = Paint().apply {
         color = teamColor
         isAntiAlias = true
@@ -112,24 +121,22 @@ fun getAvatarWithBorderAndName(source: Bitmap, teamColor: Int, username: String)
         strokeWidth = borderWidth
         setShadowLayer(shadowRadius, 0f, 0f, teamColor)
     }
+    canvas.drawCircle(centerX, avatarCenterY, avatarSize / 2f, paintGlow)
 
+    // Bordo solido per pulizia
     val paintBorder = Paint().apply {
         color = teamColor
         isAntiAlias = true
         style = Paint.Style.STROKE
         strokeWidth = borderWidth
     }
-
-    // Disegniamo il cerchio (Glow + Bordo)
-    canvas.drawCircle(centerX, avatarCenterY, avatarSize / 2f, paintGlow)
     canvas.drawCircle(centerX, avatarCenterY, avatarSize / 2f, paintBorder)
 
-    // 7. POSIZIONAMENTO FINALE AVATAR
+    // 7. Overlay dell'avatar
     canvas.drawBitmap(circularBitmap, centerX - (avatarSize / 2f), avatarCenterY - (avatarSize / 2f), null)
 
     return output
 }
-
 @SuppressLint("MissingPermission")
 @Composable
 fun MapScreen(
@@ -175,7 +182,9 @@ fun MapScreen(
     }
 
     val coroutineScope = rememberCoroutineScope()
-
+    val currentZoom by remember { derivedStateOf { cameraPositionState.position.zoom } }
+    val shouldShowNames = currentZoom > 18f
+    val markerAlpha = if (currentZoom < 16f) 0.5f else 1.0f
     val lifecycleOwner = LocalLifecycleOwner.current
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
@@ -252,7 +261,7 @@ fun MapScreen(
 
     val otherPlayersBitmaps = remember { mutableStateMapOf<String, Pair<String, Bitmap>>() }
 
-    LaunchedEffect(avatarSeed) {
+    LaunchedEffect(avatarSeed, shouldShowNames) {
         avatarSeed?.let { seed ->
             val colorInt = if (team == "BLUE") 0xFF00E5FF.toInt() else 0xFFFF4081.toInt()
             val request = ImageRequest.Builder(context)
@@ -260,32 +269,26 @@ fun MapScreen(
                 .allowHardware(false)
                 .target { result ->
                     val original = (result as android.graphics.drawable.BitmapDrawable).bitmap
-                    // Passiamo anche lo username qui
-                    avatarBitmap = getAvatarWithBorderAndName(original, colorInt, username)
+                    avatarBitmap = getAvatarWithBorderAndName(original, colorInt, username, shouldShowNames)
                 }.build()
             context.imageLoader.enqueue(request)
         }
     }
 
-    LaunchedEffect(otherPlayers) {
+// 3. Ricarica gli avatar degli altri giocatori
+    LaunchedEffect(otherPlayers, shouldShowNames) {
         otherPlayers.forEach { player ->
             if (player.avatar_seed != null) {
-                val cached = otherPlayersBitmaps[player.username]
-                if (cached == null || cached.first != player.avatar_seed) {
-                    // Determina il colore in base al team dell'altro giocatore
-                    val otherTeamColor = if (player.team == "BLUE") 0xFF00E5FF.toInt() else 0xFFFF4081.toInt()
-
-                    val request = ImageRequest.Builder(context)
-                        .data("https://api.dicebear.com/7.x/pixel-art/png?seed=${player.avatar_seed}")
-                        .allowHardware(false)
-                        .target { result ->
-                            val original = (result as android.graphics.drawable.BitmapDrawable).bitmap
-                            // Cambia la chiamata dentro il target dell'ImageRequest:
-                            val bitmapWithBorder = getAvatarWithBorderAndName(original, otherTeamColor, player.username)
-                            otherPlayersBitmaps[player.username] = Pair(player.avatar_seed!!, bitmapWithBorder)
-                        }.build()
-                    context.imageLoader.enqueue(request)
-                }
+                val otherTeamColor = if (player.team == "BLUE") 0xFF00E5FF.toInt() else 0xFFFF4081.toInt()
+                val request = ImageRequest.Builder(context)
+                    .data("https://api.dicebear.com/7.x/pixel-art/png?seed=${player.avatar_seed}")
+                    .allowHardware(false)
+                    .target { result ->
+                        val original = (result as android.graphics.drawable.BitmapDrawable).bitmap
+                        val bitmapWithBorder = getAvatarWithBorderAndName(original, otherTeamColor, player.username, shouldShowNames)
+                        otherPlayersBitmaps[player.username] = Pair(player.avatar_seed!!, bitmapWithBorder)
+                    }.build()
+                context.imageLoader.enqueue(request)
             }
         }
     }
@@ -344,10 +347,12 @@ fun MapScreen(
                 if (avatarBitmap != null) {
                     Marker(
                         state = MarkerState(position = playerPosition),
-                        title = "$username",
-                        icon = BitmapDescriptorFactory.fromBitmap(avatarBitmap!!)
+                        icon = BitmapDescriptorFactory.fromBitmap(avatarBitmap!!),
+                        alpha = markerAlpha, // Applica trasparenza
+                        anchor = if (shouldShowNames) androidx.compose.ui.geometry.Offset(0.5f, 0.8f)
+                        else androidx.compose.ui.geometry.Offset(0.5f, 0.5f)
                     )
-                } else {
+                }else {
                     Marker(
                         state = MarkerState(position = playerPosition),
                         title = "$username",
@@ -357,22 +362,14 @@ fun MapScreen(
 
                 otherPlayers.forEach { player ->
                     val playerPos = LatLng(player.lat ?: 0.0, player.lon ?: 0.0)
-                    val playerColor = if (player.team == "BLUE") BitmapDescriptorFactory.HUE_CYAN else if (player.team == "RED") BitmapDescriptorFactory.HUE_ROSE else BitmapDescriptorFactory.HUE_VIOLET
                     val playerCache = otherPlayersBitmaps[player.username]
-
                     if (playerCache != null) {
                         Marker(
                             state = MarkerState(position = playerPos),
-                            title = player.username,
-                            snippet = "Team: ${player.team}",
-                            icon = BitmapDescriptorFactory.fromBitmap(playerCache.second)
-                        )
-                    } else {
-                        Marker(
-                            state = MarkerState(position = playerPos),
-                            title = player.username,
-                            snippet = "Team: ${player.team}",
-                            icon = BitmapDescriptorFactory.defaultMarker(playerColor)
+                            icon = BitmapDescriptorFactory.fromBitmap(playerCache.second),
+                            alpha = markerAlpha, // Applica trasparenza
+                            anchor = if (shouldShowNames) androidx.compose.ui.geometry.Offset(0.5f, 0.8f)
+                            else androidx.compose.ui.geometry.Offset(0.5f, 0.5f)
                         )
                     }
                 }
