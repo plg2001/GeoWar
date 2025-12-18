@@ -52,60 +52,83 @@ import android.graphics.Rect
 
 import android.graphics.*
 
-fun getAvatarWithBorder(source: Bitmap, teamColor: Int): Bitmap {
-    val borderWidth = 12f
-    val shadowRadius = 20f // Effetto Glow (bagliore)
+import android.graphics.*
+import android.text.TextPaint
 
-    // Calcoliamo la dimensione finale includendo lo spazio per il bagliore
-    val size = (source.width + (borderWidth + shadowRadius) * 2).toInt()
-    val output = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
+import android.graphics.*
+
+
+fun getAvatarWithBorderAndName(source: Bitmap, teamColor: Int, username: String): Bitmap {
+    val avatarSize = 120f
+    val borderWidth = 8f
+    val shadowRadius = 15f
+    val fontSize = 30f
+    val paddingBetween = 15f // Spazio tra testo e avatar
+
+    // 1. Preparazione Paint per il testo per calcolarne l'ingombro
+    val textPaint = TextPaint().apply {
+        color = android.graphics.Color.WHITE
+        textSize = fontSize
+        isAntiAlias = true
+        textAlign = Paint.Align.CENTER
+        typeface = Typeface.create(Typeface.MONOSPACE, Typeface.BOLD)
+        setShadowLayer(8f, 0f, 0f, android.graphics.Color.BLACK)
+    }
+
+    val textWidth = textPaint.measureText(username.uppercase())
+
+    // 2. Calcolo dimensioni Bitmap (larghezza dinamica in base al nome)
+    val contentWidth = Math.max(avatarSize + (shadowRadius * 2), textWidth + 20f).toInt()
+    val contentHeight = (fontSize + paddingBetween + avatarSize + (shadowRadius * 2)).toInt()
+
+    val output = Bitmap.createBitmap(contentWidth, contentHeight, Bitmap.Config.ARGB_8888)
     val canvas = Canvas(output)
 
-    val center = size / 2f
-    val radius = source.width / 2f
+    val centerX = contentWidth / 2f
 
-    // 1. Preparazione dell'immagine originale ritagliata a cerchio
-    val paintImage = Paint().apply {
-        isAntiAlias = true
-    }
+    // 3. DISEGNO DEL NOME (In alto, con spazio dedicato)
+    // Il testo viene disegnato partendo dalla sua baseline
+    canvas.drawText(username.uppercase(), centerX, fontSize, textPaint)
 
-    // Creiamo un bitmap circolare dell'avatar
-    val circularBitmap = Bitmap.createBitmap(source.width, source.height, Bitmap.Config.ARGB_8888)
+    // 4. COORDINATE AVATAR (Sotto il testo)
+    val avatarTop = fontSize + paddingBetween + shadowRadius
+    val avatarCenterY = avatarTop + (avatarSize / 2f)
+
+    // 5. RITAGLIO AVATAR CIRCOLARE
+    val scaledSource = Bitmap.createScaledBitmap(source, avatarSize.toInt(), avatarSize.toInt(), true)
+    val circularBitmap = Bitmap.createBitmap(avatarSize.toInt(), avatarSize.toInt(), Bitmap.Config.ARGB_8888)
     val canvasCircle = Canvas(circularBitmap)
     val path = Path().apply {
-        addCircle(source.width / 2f, source.height / 2f, radius, Path.Direction.CCW)
+        addCircle(avatarSize / 2f, avatarSize / 2f, avatarSize / 2f, Path.Direction.CCW)
     }
     canvasCircle.clipPath(path)
-    canvasCircle.drawBitmap(source, 0f, 0f, paintImage)
+    canvasCircle.drawBitmap(scaledSource, 0f, 0f, null)
 
-    // 2. Disegno dell'ombra/bagliore (Glow Effect)
+    // 6. EFFETTO GLOW E BORDO (Attorno al cerchio)
     val paintGlow = Paint().apply {
         color = teamColor
         isAntiAlias = true
         style = Paint.Style.STROKE
         strokeWidth = borderWidth
-        // SetShadowLayer crea l'effetto neon
         setShadowLayer(shadowRadius, 0f, 0f, teamColor)
     }
 
-    // Disegniamo il cerchio del bordo con il bagliore
-    canvas.drawCircle(center, center, radius + (borderWidth / 2), paintGlow)
-
-    // 3. Disegno del bordo solido sopra il bagliore per pulizia
     val paintBorder = Paint().apply {
         color = teamColor
         isAntiAlias = true
         style = Paint.Style.STROKE
         strokeWidth = borderWidth
     }
-    canvas.drawCircle(center, center, radius + (borderWidth / 2), paintBorder)
 
-    // 4. Disegniamo l'avatar circolare al centro
-    canvas.drawBitmap(circularBitmap, center - radius, center - radius, null)
+    // Disegniamo il cerchio (Glow + Bordo)
+    canvas.drawCircle(centerX, avatarCenterY, avatarSize / 2f, paintGlow)
+    canvas.drawCircle(centerX, avatarCenterY, avatarSize / 2f, paintBorder)
+
+    // 7. POSIZIONAMENTO FINALE AVATAR
+    canvas.drawBitmap(circularBitmap, centerX - (avatarSize / 2f), avatarCenterY - (avatarSize / 2f), null)
 
     return output
 }
-
 
 @SuppressLint("MissingPermission")
 @Composable
@@ -230,15 +253,15 @@ fun MapScreen(
     val otherPlayersBitmaps = remember { mutableStateMapOf<String, Pair<String, Bitmap>>() }
 
     LaunchedEffect(avatarSeed) {
-        avatarSeed?.let {
+        avatarSeed?.let { seed ->
             val colorInt = if (team == "BLUE") 0xFF00E5FF.toInt() else 0xFFFF4081.toInt()
             val request = ImageRequest.Builder(context)
-                .data("https://api.dicebear.com/7.x/pixel-art/png?seed=$it")
-                .allowHardware(false) // Necessario per manipolare il bitmap
+                .data("https://api.dicebear.com/7.x/pixel-art/png?seed=$seed")
+                .allowHardware(false)
                 .target { result ->
                     val original = (result as android.graphics.drawable.BitmapDrawable).bitmap
-                    // Applichiamo il bordo qui
-                    avatarBitmap = getAvatarWithBorder(original, colorInt)
+                    // Passiamo anche lo username qui
+                    avatarBitmap = getAvatarWithBorderAndName(original, colorInt, username)
                 }.build()
             context.imageLoader.enqueue(request)
         }
@@ -257,7 +280,8 @@ fun MapScreen(
                         .allowHardware(false)
                         .target { result ->
                             val original = (result as android.graphics.drawable.BitmapDrawable).bitmap
-                            val bitmapWithBorder = getAvatarWithBorder(original, otherTeamColor)
+                            // Cambia la chiamata dentro il target dell'ImageRequest:
+                            val bitmapWithBorder = getAvatarWithBorderAndName(original, otherTeamColor, player.username)
                             otherPlayersBitmaps[player.username] = Pair(player.avatar_seed!!, bitmapWithBorder)
                         }.build()
                     context.imageLoader.enqueue(request)
@@ -582,7 +606,7 @@ fun MapScreen(
                             Text("Zone already under control.", color = Color.Green)
                         } else {
                             Button(
-                                onClick = { 
+                                onClick = {
                                     if (isNeutral) {
                                         val colors = listOf("RED", "GREEN", "BLUE")
                                         currentMinigameColor = colors[Random.nextInt(colors.size)]
@@ -733,7 +757,7 @@ fun CyberpunkDialog(
                         }
                     }
                     Button(
-                        onClick = onConfirm, 
+                        onClick = onConfirm,
                         modifier = Modifier.weight(1f),
                         colors = ButtonDefaults.buttonColors(containerColor = titleColor)
                     ) {
