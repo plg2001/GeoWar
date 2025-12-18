@@ -3,6 +3,7 @@ package com.example.geowar.ui.lobby
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Logout
 import androidx.compose.material.icons.filled.Public
@@ -20,13 +21,26 @@ fun LobbyScreen(
     username: String,
     onPublicMatchClick: () -> Unit,
     onPrivateMatchClick: () -> Unit,
-    onLogoutClick: () -> Unit
+    onLogoutClick: () -> Unit,
+    onAccountClick: () -> Unit
 ) {
     Box(
         modifier = Modifier
             .fillMaxSize()
             .padding(16.dp)
     ) {
+        IconButton(
+            onClick = onAccountClick,
+            modifier = Modifier.align(Alignment.TopEnd)
+        ) {
+            Icon(
+                imageVector = Icons.Default.AccountCircle,
+                contentDescription = "Account",
+                tint = Color.White,
+                modifier = Modifier.size(40.dp)
+            )
+        }
+
         Column(
             modifier = Modifier.align(Alignment.Center),
             horizontalAlignment = Alignment.CenterHorizontally,

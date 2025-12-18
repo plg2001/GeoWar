@@ -203,6 +203,9 @@ class MainActivity : ComponentActivity() {
                                     navController.navigate("auth") {
                                         popUpTo("landing") { inclusive = true }
                                     }
+                                },
+                                onAccountClick = {
+                                    navController.navigate("account")
                                 }
                             )
                         }
