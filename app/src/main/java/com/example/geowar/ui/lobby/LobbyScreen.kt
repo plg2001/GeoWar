@@ -4,6 +4,7 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.Logout
 import androidx.compose.material.icons.filled.Public
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
@@ -18,67 +19,84 @@ import com.example.geowar.ui.theme.TerminalShape
 fun LobbyScreen(
     username: String,
     onPublicMatchClick: () -> Unit,
-    onPrivateMatchClick: () -> Unit
+    onPrivateMatchClick: () -> Unit,
+    onLogoutClick: () -> Unit
 ) {
-    Column(
+    Box(
         modifier = Modifier
             .fillMaxSize()
-            .padding(16.dp),
-        verticalArrangement = Arrangement.Center,
-        horizontalAlignment = Alignment.CenterHorizontally
+            .padding(16.dp)
     ) {
-        Text(
-            text = "ACCESS TERMINAL",
-            style = MaterialTheme.typography.headlineLarge,
-            fontWeight = FontWeight.Bold,
-            color = Color.White
-        )
-        Text(
-            text = "OPERATOR: $username",
-            style = MaterialTheme.typography.bodyLarge,
-            color = Color.White.copy(alpha = 0.7f)
-        )
-
-        Spacer(modifier = Modifier.height(48.dp))
-
-        // PUBLIC MATCH BUTTON
-        Button(
-            onClick = onPublicMatchClick,
-            modifier = Modifier
-                .fillMaxWidth(0.9f)
-                .height(60.dp),
-            shape = TerminalShape(),
-            colors = ButtonDefaults.buttonColors(
-                containerColor = MaterialTheme.colorScheme.primary
-            )
+        Column(
+            modifier = Modifier.align(Alignment.Center),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
         ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Default.Public, contentDescription = "Public Match", modifier = Modifier.size(24.dp))
-                Spacer(modifier = Modifier.width(16.dp))
-                Text("PUBLIC MATCH", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+            Text(
+                text = "ACCESS TERMINAL",
+                style = MaterialTheme.typography.headlineLarge,
+                fontWeight = FontWeight.Bold,
+                color = Color.White
+            )
+            Text(
+                text = "OPERATOR: $username",
+                style = MaterialTheme.typography.bodyLarge,
+                color = Color.White.copy(alpha = 0.7f)
+            )
+
+            Spacer(modifier = Modifier.height(48.dp))
+
+            // PUBLIC MATCH BUTTON
+            Button(
+                onClick = onPublicMatchClick,
+                modifier = Modifier
+                    .fillMaxWidth(0.9f)
+                    .height(60.dp),
+                shape = TerminalShape(),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.primary
+                )
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Default.Public, contentDescription = "Public Match", modifier = Modifier.size(24.dp))
+                    Spacer(modifier = Modifier.width(16.dp))
+                    Text("PUBLIC MATCH", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // PRIVATE MATCH BUTTON
+            OutlinedButton(
+                onClick = onPrivateMatchClick,
+                modifier = Modifier
+                    .fillMaxWidth(0.9f)
+                    .height(60.dp),
+                shape = TerminalShape(),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.5f))
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Default.Lock, contentDescription = "Private Match", modifier = Modifier.size(24.dp), tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.7f))
+                    Spacer(modifier = Modifier.width(16.dp))
+                    Text(
+                        "PRIVATE MATCH",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.7f)
+                    )
+                }
             }
         }
 
-        Spacer(modifier = Modifier.height(16.dp))
-
-        // PRIVATE MATCH BUTTON
-        OutlinedButton(
-            onClick = onPrivateMatchClick,
-            modifier = Modifier
-                .fillMaxWidth(0.9f)
-                .height(60.dp),
-            shape = TerminalShape(),
-            border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.5f))
+        // LOGOUT BUTTON
+        TextButton(
+            onClick = onLogoutClick,
+            modifier = Modifier.align(Alignment.BottomCenter)
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Default.Lock, contentDescription = "Private Match", modifier = Modifier.size(24.dp), tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.7f))
-                Spacer(modifier = Modifier.width(16.dp))
-                Text(
-                    "PRIVATE MATCH", 
-                    style = MaterialTheme.typography.titleMedium, 
-                    fontWeight = FontWeight.Bold, 
-                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.7f)
-                )
+                Icon(Icons.Default.Logout, contentDescription = "Logout", tint = Color.White.copy(alpha = 0.7f))
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("LOGOUT", color = Color.White.copy(alpha = 0.7f))
             }
         }
     }

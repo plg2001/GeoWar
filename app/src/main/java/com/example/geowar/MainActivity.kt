@@ -197,6 +197,12 @@ class MainActivity : ComponentActivity() {
                                 },
                                 onPrivateMatchClick = {
                                     Toast.makeText(this@MainActivity, "In arrivo...", Toast.LENGTH_SHORT).show()
+                                },
+                                onLogoutClick = {
+                                    sharedPref.edit { clear() }
+                                    navController.navigate("auth") {
+                                        popUpTo("landing") { inclusive = true }
+                                    }
                                 }
                             )
                         }
@@ -279,7 +285,7 @@ class MainActivity : ComponentActivity() {
                         composable("admin_dashboard") {
                             AdminScreen(
                                 onLogout = {
-                                    // Logout semplice: pulisci le preferenze e torna all'auth
+                                    // Logout semplice: pulisci le preferenze e torna all\'auth
                                     sharedPref.edit { clear() }
                                     navController.navigate("auth") {
                                         popUpTo("landing") { inclusive = true }
