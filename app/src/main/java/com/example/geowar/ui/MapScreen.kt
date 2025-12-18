@@ -46,36 +46,62 @@ import com.google.android.gms.maps.model.MapStyleOptions
 import com.google.maps.android.compose.*
 import kotlinx.coroutines.launch
 import kotlin.random.Random
-
-
 import android.graphics.Canvas
 import android.graphics.Paint
 import android.graphics.Rect
 
+import android.graphics.*
+
 fun getAvatarWithBorder(source: Bitmap, teamColor: Int): Bitmap {
-    val borderWidth = 12 // Spessore del bordo in pixel
-    val size = source.width + (borderWidth * 2)
+    val borderWidth = 12f
+    val shadowRadius = 20f // Effetto Glow (bagliore)
+
+    // Calcoliamo la dimensione finale includendo lo spazio per il bagliore
+    val size = (source.width + (borderWidth + shadowRadius) * 2).toInt()
     val output = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
     val canvas = Canvas(output)
 
-    val paint = Paint().apply {
-        color = teamColor
-        style = Paint.Style.STROKE
-        strokeWidth = borderWidth.toFloat()
+    val center = size / 2f
+    val radius = source.width / 2f
+
+    // 1. Preparazione dell'immagine originale ritagliata a cerchio
+    val paintImage = Paint().apply {
         isAntiAlias = true
     }
 
-    // Disegna l'immagine originale al centro
-    canvas.drawBitmap(source, borderWidth.toFloat(), borderWidth.toFloat(), null)
+    // Creiamo un bitmap circolare dell'avatar
+    val circularBitmap = Bitmap.createBitmap(source.width, source.height, Bitmap.Config.ARGB_8888)
+    val canvasCircle = Canvas(circularBitmap)
+    val path = Path().apply {
+        addCircle(source.width / 2f, source.height / 2f, radius, Path.Direction.CCW)
+    }
+    canvasCircle.clipPath(path)
+    canvasCircle.drawBitmap(source, 0f, 0f, paintImage)
 
-    // Disegna il rettangolo del bordo
-    val rect = Rect(
-        borderWidth / 2,
-        borderWidth / 2,
-        size - (borderWidth / 2),
-        size - (borderWidth / 2)
-    )
-    canvas.drawRect(rect, paint)
+    // 2. Disegno dell'ombra/bagliore (Glow Effect)
+    val paintGlow = Paint().apply {
+        color = teamColor
+        isAntiAlias = true
+        style = Paint.Style.STROKE
+        strokeWidth = borderWidth
+        // SetShadowLayer crea l'effetto neon
+        setShadowLayer(shadowRadius, 0f, 0f, teamColor)
+    }
+
+    // Disegniamo il cerchio del bordo con il bagliore
+    canvas.drawCircle(center, center, radius + (borderWidth / 2), paintGlow)
+
+    // 3. Disegno del bordo solido sopra il bagliore per pulizia
+    val paintBorder = Paint().apply {
+        color = teamColor
+        isAntiAlias = true
+        style = Paint.Style.STROKE
+        strokeWidth = borderWidth
+    }
+    canvas.drawCircle(center, center, radius + (borderWidth / 2), paintBorder)
+
+    // 4. Disegniamo l'avatar circolare al centro
+    canvas.drawBitmap(circularBitmap, center - radius, center - radius, null)
 
     return output
 }
