@@ -41,6 +41,7 @@ import com.example.geowar.R
 import com.example.geowar.ui.composables.Joystick
 import com.google.android.gms.location.*
 import com.google.android.gms.maps.CameraUpdateFactory
+import com.google.android.gms.maps.model.BitmapDescriptor
 import com.google.android.gms.maps.model.BitmapDescriptorFactory
 import com.google.android.gms.maps.model.CameraPosition
 import com.google.android.gms.maps.model.LatLng
@@ -64,35 +65,44 @@ fun getTargetWithBorder(
     source: Bitmap,
     teamColor: Int
 ): Bitmap {
-    val iconSize = 90f
-    val borderWidth = 6f
-    val shadowRadius = 12f
 
-    val outputSize = (iconSize + shadowRadius * 2).toInt()
+    // --------------------------
+    // 🎛️ PARAMETRI
+    // --------------------------
+    val circleSize = 100f      // dimensione cerchio (come sizeDp = 200)
+    val fillFactor = 1f     // quanto la torre riempie il cerchio
+    val borderWidth = 8f
+    val shadowRadius = 18f
+
+    // --------------------------
+    // 📐 OUTPUT
+    // --------------------------
+    val outputSize = (circleSize + shadowRadius * 2).toInt()
+    val center = outputSize / 2f
+
     val output = Bitmap.createBitmap(outputSize, outputSize, Bitmap.Config.ARGB_8888)
     val canvas = Canvas(output)
 
-    val center = outputSize / 2f
+    // --------------------------
+    // 🖼️ SCALA TORRE (MANTIENE PROPORZIONI)
+    // --------------------------
+    val targetHeight = circleSize * fillFactor
+    val aspectRatio = source.width.toFloat() / source.height.toFloat()
+    val targetWidth = targetHeight * aspectRatio
 
-    // --- scala mantenendo aspect ratio ---
-    val ratio = source.width.toFloat() / source.height.toFloat()
-    val targetW: Int
-    val targetH: Int
+    val scaledTower = Bitmap.createScaledBitmap(
+        source,
+        targetWidth.toInt(),
+        targetHeight.toInt(),
+        true
+    )
 
-    if (source.width > source.height) {
-        targetW = iconSize.toInt()
-        targetH = (iconSize / ratio).toInt()
-    } else {
-        targetH = iconSize.toInt()
-        targetW = (iconSize * ratio).toInt()
-    }
+    val left = center - targetWidth / 2f
+    val top = center - targetHeight / 2f
 
-    val scaled = Bitmap.createScaledBitmap(source, targetW, targetH, true)
-
-    val left = center - targetW / 2f
-    val top = center - targetH / 2f
-
-    // --- glow ---
+    // --------------------------
+    // ✨ GLOW
+    // --------------------------
     val glowPaint = Paint().apply {
         color = teamColor
         isAntiAlias = true
@@ -100,22 +110,27 @@ fun getTargetWithBorder(
         strokeWidth = borderWidth
         setShadowLayer(shadowRadius, 0f, 0f, teamColor)
     }
-    canvas.drawCircle(center, center, iconSize / 2f, glowPaint)
+    canvas.drawCircle(center, center, circleSize / 2f, glowPaint)
 
-    // --- bordo ---
+    // --------------------------
+    // 🔵 BORDO
+    // --------------------------
     val borderPaint = Paint().apply {
         color = teamColor
         isAntiAlias = true
         style = Paint.Style.STROKE
         strokeWidth = borderWidth
     }
-    canvas.drawCircle(center, center, iconSize / 2f, borderPaint)
+    canvas.drawCircle(center, center, circleSize / 2f, borderPaint)
 
-    // --- disegna torre ---
-    canvas.drawBitmap(scaled, left, top, null)
+    // --------------------------
+    // 🏰 TORRE
+    // --------------------------
+    canvas.drawBitmap(scaledTower, left, top, null)
 
     return output
 }
+
 
 
 fun resizedBitmapDescriptor(
@@ -362,6 +377,12 @@ fun MapScreen(
 
     // Mio avatar: 2 bitmap (con nome / senza nome) create UNA volta per seed
     var myAvatarCache by remember { mutableStateOf<AvatarCache?>(null) }
+    val targetIconCache = remember { mutableStateMapOf<String, BitmapDescriptor>() }
+    val baseTowerBitmap by remember {
+        mutableStateOf(
+            BitmapFactory.decodeResource(context.resources, R.drawable.torre_red)
+        )
+    }
 
     LaunchedEffect(avatarSeed, username, myColorInt) {
         myAvatarCache = null
@@ -522,28 +543,33 @@ fun MapScreen(
                 val torreRedIcon = remember {
                     resizedBitmapDescriptor(context, R.drawable.torre_red, sizeDp = 200)
                 }
-                val torreBlueIcon = remember {
-                    resizedBitmapDescriptor(context, R.drawable.torre_blue, sizeDp = 200)
-                }
-                val torreNeutralIcon = remember {
-                    resizedBitmapDescriptor(context, R.drawable.torre_neutral, sizeDp = 200)
-                }
+
+
 
 
                 targets.forEach { target ->
-                    val targetIcon = when (target.owner) {
-                        "BLUE" -> torreBlueIcon
-                        "RED" -> torreRedIcon
-                        else -> torreNeutralIcon
+                    val colorInt = when (target.owner) {
+                        "BLUE" -> 0xFF00E5FF.toInt()
+                        "RED" -> 0xFFFF4081.toInt()
+                        else -> 0xFFFFD600.toInt() // NEUTRAL
+                    }
+
+                    val cacheKey = "${target.id}_${target.owner}"
+
+                    val icon = targetIconCache.getOrPut(cacheKey) {
+                        BitmapDescriptorFactory.fromBitmap(
+                            getTargetWithBorder(baseTowerBitmap, colorInt)
+                        )
                     }
 
                     Marker(
                         state = MarkerState(position = LatLng(target.lat, target.lon)),
                         title = target.name,
-                        snippet = "Owner: ${target.owner}",
-                        icon = targetIcon
+                        icon = icon,
+                        anchor = androidx.compose.ui.geometry.Offset(0.5f, 0.75f)
                     )
                 }
+
 
             }
         } else {
