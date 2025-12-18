@@ -365,17 +365,7 @@ fun MapScreen(
                     )
                 }
 
-                // --- PLAYER LOCALE ---
-                avatarBitmap?.let { bitmap ->
-                    Marker(
-                        state = MarkerState(position = playerPosition!!),
-                        icon = BitmapDescriptorFactory.fromBitmap(bitmap),
-                        alpha = markerAlpha,
-                        // 0.65f tiene il cerchio dell'avatar centrato sulla posizione GPS quando c'è il nome
-                        anchor = if (shouldShowNames) androidx.compose.ui.geometry.Offset(0.5f, 0.65f)
-                        else androidx.compose.ui.geometry.Offset(0.5f, 0.5f)
-                    )
-                }
+
 
                 // --- ALTRI GIOCATORI ---
                 otherPlayers.forEach { player ->
