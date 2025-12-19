@@ -9,22 +9,22 @@ REQUISITI GENERALI
 
 GAMEPLAY
 - Arena 2D vista top-down, dimensione fissa
-- Due giocatori rappresentati con i loro avatar
+- Due giocatori rappresentati con i loro avatar che si trovano uno davanti l'atro (io sotto lo schermo lui sopra)
 - Ogni giocatore ha:
-    - una posizione
-    - una direzione di mira
-    - UN SOLO colpo disponibile
+    - una mira fissa
+    - un proiettile che si muove in linea retta
+    - Colpi infinito
 - Se un giocatore spara e colpisce l’altro → vince immediatamente
 - Se un giocatore spara e sbaglia → perde immediatamente
 - Nessun respawn, nessun punteggio, fine partita istantanea
 
 CONTROLLI
-- Swipe sullo schermo per mirare (angolo di tiro)
+- I giocatori si muovono da destra a sinistra dello schermo (orizzontalmente) con l'accellerometro dell telefono
 - Tap singolo per sparare
 - Dopo lo sparo l’input viene disabilitato
 
 DURATA
-- Il match deve poter finire in meno di 10 secondi
+- Il match deve poter finire in meno di 20 secondi
 - Appena c’è un vincitore, mostra un semplice testo:
   "VITTORIA" / "SCONFITTA"
 
