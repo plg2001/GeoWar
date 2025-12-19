@@ -71,4 +71,7 @@ interface AuthApi {
 
     @POST("/lobby/leave")
     suspend fun leaveLobby(@Body request: JoinLobbyRequest): GenericResponse
+
+    @GET("/lobby/{lobby_id}/users")
+    suspend fun getLobbyUsers(@Path("lobby_id") lobbyId: Int): List<UserResponse>
 }

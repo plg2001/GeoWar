@@ -1,3 +1,4 @@
+
 import os
 import time
 import random
@@ -388,7 +389,13 @@ def get_user_details(user_id):
         "id": user.id,
         "username": user.username,
         "email": user.email,
+        "team": user.team,
+        "score": user.score,
+        "lat": user.lat,
+        "lon": user.lon,
+        "last_active": user.last_active,
         "avatar_seed": user.avatar_seed,
+        "admin": user.admin,
         "lobby_id": user.lobby_id
     }), 200
 
@@ -434,7 +441,7 @@ def update_user_details(user_id):
 
 @app.route("/lobbies", methods=["GET"])
 def get_lobbies():
-    lobbies = Lobby.query.filter(Lobby.status.in_(["WAITING", "ACTIVE"])).all()
+    lobbies = Lobby.query.filter(Lobby.status.in_(['WAITING', 'ACTIVE'])).all()
     result = []
     for lobby in lobbies:
         result.append({
@@ -475,7 +482,7 @@ def join_lobby():
     if not target_lobby:
         return jsonify({"message": "Lobby non trovata"}), 404
 
-    if target_lobby.status not in ["WAITING", "ACTIVE"]:
+    if target_lobby.status not in ['WAITING', 'ACTIVE']:
         return jsonify({"message": "La lobby non è disponibile"}), 403
 
     if user.lobby_id:
@@ -549,6 +556,32 @@ def leave_lobby():
             return jsonify({"message": "Lobby lasciata. Partita annullata per mancanza giocatori.", "success": True}), 200
 
     return jsonify({"message": "Lobby lasciata con successo", "success": True}), 200
+
+
+@app.route("/lobby/<int:lobby_id>/users", methods=["GET"])
+def get_lobby_users(lobby_id):
+    lobby = Lobby.query.get(lobby_id)
+    if not lobby:
+        return jsonify({"message": "Lobby non trovata"}), 404
+
+    # Utenti attivi nella lobby specificata
+    users = User.query.filter_by(lobby_id=lobby_id, banned=False).all()
+
+    now = time.time()
+    ACTIVE_SECONDS = 20  # Considera attivi gli utenti negli ultimi 20 secondi
+
+    return jsonify([
+        {
+            "id": u.id,
+            "username": u.username,
+            "team": u.team,
+            "lat": u.lat,
+            "lon": u.lon,
+            "avatar_seed": u.avatar_seed,
+            "is_active": (now - u.last_active) < ACTIVE_SECONDS,
+        }
+        for u in users
+    ]), 200
 
 
 @app.route("/set_team", methods=["POST"])
@@ -785,7 +818,7 @@ def create_target():
     if not name or lat is None or lon is None:
         return jsonify({"message": "Dati target incompleti"}), 400
 
-    if owner not in {"NEUTRAL", "RED", "BLUE"}:
+    if owner not in {'NEUTRAL', 'RED', 'BLUE'}:
         owner = "NEUTRAL"
 
     new_target = Target(name=name, lat=float(lat), lon=float(lon), owner_team=owner, lobby_id=None)

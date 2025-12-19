@@ -225,13 +225,12 @@ class MapViewModel(application: Application) : AndroidViewModel(application) {
         playersFetcherJob = viewModelScope.launch {
             while (isActive) {
                 try {
-                    // Usiamo users_positions che è l'endpoint corretto per tutti gli utenti, non solo admin
-                    val activeUsers = ApiClient.authApi.getUsersPositions()
-                    val currentUserId = userRepository.getUserId()
-
-                    // Filtra te stesso e filtra per lobby
-                    otherPlayers = activeUsers.filter {
-                        it.id != currentUserId && it.lobby_id == currentLobbyId
+                    currentLobbyId?.let { lobbyId ->
+                        val lobbyUsers = ApiClient.authApi.getLobbyUsers(lobbyId)
+                        val currentUserId = userRepository.getUserId()
+                        otherPlayers = lobbyUsers.filter { it.id != currentUserId }
+                    } ?: run {
+                        otherPlayers = emptyList() // Svuota la lista se non c'è lobby
                     }
                 } catch (e: Exception) {
                     e.printStackTrace()
