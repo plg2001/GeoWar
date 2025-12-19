@@ -1,6 +1,7 @@
 package com.example.geowar
 
 import android.content.Context
+import android.content.Intent
 import android.os.Bundle
 import android.util.Log
 import android.widget.Toast
@@ -15,6 +16,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.credentials.CredentialManager
 import androidx.credentials.CustomCredential
 import androidx.credentials.GetCredentialRequest
@@ -26,6 +28,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.example.geowar.data.ApiClient
 import com.example.geowar.data.auth.UserResponse
+import com.example.geowar.minigame.OneShotArenaActivity
 import com.example.geowar.ui.LandingScreen
 import com.example.geowar.ui.MapScreen
 import com.example.geowar.ui.MinigameScreen
@@ -93,6 +96,7 @@ class MainActivity : ComponentActivity() {
                         // 1. Landing Screen
                         // -------------------------
                         composable("landing") {
+                            val context = LocalContext.current
                             LandingScreen(
                                 onStartClick = {
                                     val savedTeam = sharedPref.getString(PREF_TEAM, null)
@@ -108,7 +112,8 @@ class MainActivity : ComponentActivity() {
                                     }
                                 },
                                 onTestMinigameClick = {
-                                    navController.navigate("color_minigame")
+                                    val intent = Intent(context, OneShotArenaActivity::class.java)
+                                    context.startActivity(intent)
                                 }
                             )
                         }
