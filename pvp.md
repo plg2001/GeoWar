@@ -1,10 +1,7 @@
-Agisci come uno sviluppatore Android esperto in Kotlin e giochi 2D semplici.
-
 Implementa un minigioco PVP chiamato "One-Shot Arena", pensato per durare massimo 5–10 secondi
-e per essere integrato come minigioco dentro un gioco Android più grande.
+
 
 REQUISITI GENERALI
-- Linguaggio: Kotlin
 - Rendering: Canvas / View personalizzata (NO engine esterni tipo Unity, LibGDX)
 - Architettura semplice, leggibile, facilmente estendibile
 - Nessuna persistenza, nessun menu complesso
@@ -12,7 +9,7 @@ REQUISITI GENERALI
 
 GAMEPLAY
 - Arena 2D vista top-down, dimensione fissa
-- Due giocatori rappresentati come cerchi
+- Due giocatori rappresentati con i loro avatar
 - Ogni giocatore ha:
     - una posizione
     - una direzione di mira
@@ -40,7 +37,7 @@ STRUTTURA CODICE RICHIESTA
 GRAFICA
 - Minimal:
     - background neutro
-    - giocatori come cerchi colorati
+    - per i giocatori prendi i loro avatar
     - linea o freccia che indica la direzione di mira
     - proiettile come piccolo cerchio che viaggia in linea retta
 
