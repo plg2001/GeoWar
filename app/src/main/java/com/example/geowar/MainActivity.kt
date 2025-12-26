@@ -28,7 +28,6 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.example.geowar.data.ApiClient
 import com.example.geowar.data.auth.UserResponse
-import com.example.geowar.minigame.OneShotArenaActivity
 import com.example.geowar.ui.LandingScreen
 import com.example.geowar.ui.MapScreen
 import com.example.geowar.ui.MinigameScreen
@@ -110,10 +109,6 @@ class MainActivity : ComponentActivity() {
                                     } else {
                                         navController.navigate("auth")
                                     }
-                                },
-                                onTestMinigameClick = {
-                                    val intent = Intent(context, OneShotArenaActivity::class.java)
-                                    context.startActivity(intent)
                                 }
                             )
                         }
