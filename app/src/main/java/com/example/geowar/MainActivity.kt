@@ -55,6 +55,7 @@ const val PREFS_NAME = "geowar_prefs"
 const val PREF_USER_ID = "USER_ID"
 const val PREF_TEAM = "TEAM"
 const val PREF_USERNAME = "USERNAME"
+const val PREF_AVATAR_SEED = "AVATAR_SEED"
 
 class MainActivity : ComponentActivity() {
 
@@ -124,7 +125,8 @@ class MainActivity : ComponentActivity() {
                                 currentUserId = userResponse.id
                                 sharedPref.edit { 
                                     putInt(PREF_USER_ID, userResponse.id)
-                                    putString(PREF_USERNAME, userResponse.username) 
+                                    putString(PREF_USERNAME, userResponse.username)
+                                    putString(PREF_AVATAR_SEED, userResponse.avatar_seed)
                                 }
 
                                 Toast.makeText(
@@ -189,8 +191,10 @@ class MainActivity : ComponentActivity() {
                         // -------------------------
                         composable("lobby_selection") {
                             val username = sharedPref.getString(PREF_USERNAME, "Player") ?: "Player"
+                            val avatarSeed = sharedPref.getString(PREF_AVATAR_SEED, username) ?: username
                             LobbyScreen(
                                 username = username,
+                                avatarSeed = avatarSeed,
                                 onPublicMatchClick = {
                                     lobbyViewModel.getLobbies()
                                     navController.navigate("lobby_list")

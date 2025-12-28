@@ -1,6 +1,8 @@
 package com.example.geowar.repository
 
 import android.content.Context
+import androidx.core.content.edit
+import com.example.geowar.PREF_AVATAR_SEED
 import com.example.geowar.PREF_USER_ID
 import com.example.geowar.PREFS_NAME
 import com.example.geowar.data.auth.AuthApi
@@ -12,6 +14,13 @@ class UserRepository(private val apiService: AuthApi, private val context: Conte
     fun getUserId(): Int {
         val sharedPref = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
         return sharedPref.getInt(PREF_USER_ID, -1)
+    }
+
+    fun saveAvatarSeed(avatarSeed: String?) {
+        val sharedPref = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        sharedPref.edit {
+            putString(PREF_AVATAR_SEED, avatarSeed)
+        }
     }
 
     suspend fun getCurrentUserDetails(): Result<UserDetails> {

@@ -1,9 +1,10 @@
 package com.example.geowar.ui.lobby
 
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Logout
 import androidx.compose.material.icons.filled.Public
@@ -11,14 +12,17 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import coil.compose.AsyncImage
 import com.example.geowar.ui.theme.TerminalShape
 
 @Composable
 fun LobbyScreen(
     username: String,
+    avatarSeed: String,
     onPublicMatchClick: () -> Unit,
     onPrivateMatchClick: () -> Unit,
     onLogoutClick: () -> Unit,
@@ -33,11 +37,16 @@ fun LobbyScreen(
             onClick = onAccountClick,
             modifier = Modifier.align(Alignment.TopEnd)
         ) {
-            Icon(
-                imageVector = Icons.Default.AccountCircle,
+            AsyncImage(
+                model = "https://api.dicebear.com/8.x/pixel-art/png?seed=$avatarSeed",
                 contentDescription = "Account",
-                tint = Color.White,
-                modifier = Modifier.size(40.dp)
+                modifier = Modifier
+                    .size(100.dp)
+                    .border(
+                        BorderStroke(2.dp, MaterialTheme.colorScheme.primary),
+                        CircleShape
+                    )
+                    .clip(CircleShape)
             )
         }
 

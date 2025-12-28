@@ -58,6 +58,8 @@ class AccountViewModel(private val userRepository: UserRepository) : ViewModel()
             errorMessage = null
             val result = userRepository.updateUserDetails(username, email, avatarSeed)
             result.onSuccess {
+                // Save the new avatar seed to shared preferences
+                userRepository.saveAvatarSeed(avatarSeed)
                 onSuccess()
             }.onFailure { error ->
                 errorMessage = error.message ?: "Impossibile salvare le modifiche"
