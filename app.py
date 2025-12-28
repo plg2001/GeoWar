@@ -1,4 +1,3 @@
-
 import os
 import time
 import random
@@ -171,30 +170,24 @@ def lobby_adjust_target_counters(lobby: Lobby, old_owner: str, new_owner: str):
 
 
 def generate_lobby_targets(lobby_id: int, count: int = 20):
-    """Genera target random per una lobby in bounding box Italia, owner NEUTRAL."""
+    """Genera un solo target fisso per una lobby, owner NEUTRAL."""
     lobby = Lobby.query.get(lobby_id)
     if not lobby:
         return
 
-    # Italia (approx bbox)
-    min_lat, max_lat = 36.6, 47.1
-    min_lon, max_lon = 6.6, 18.5
+    # Coordinate fisse
+    lat = 41.4704
+    lon = 13.1820
 
-    new_targets = []
-    for i in range(count):
-        lat = random.uniform(min_lat, max_lat)
-        lon = random.uniform(min_lon, max_lon)
-        new_targets.append(
-            Target(
-                name=f"Obiettivo Lobby {lobby_id} #{i+1}",
-                lat=lat,
-                lon=lon,
-                owner_team="NEUTRAL",
-                lobby_id=lobby_id,
-            )
-        )
+    target = Target(
+        name=f"Obiettivo Lobby {lobby_id}",
+        lat=lat,
+        lon=lon,
+        owner_team="NEUTRAL",
+        lobby_id=lobby_id,
+    )
 
-    db.session.add_all(new_targets)
+    db.session.add(target)
 
     # reset contatori target lobby (tutti neutrali)
     lobby.targets_red = 0
@@ -202,6 +195,7 @@ def generate_lobby_targets(lobby_id: int, count: int = 20):
 
     err = db_commit_or_error()
     return err
+
 
 
 # ---------------- INIT ----------------
