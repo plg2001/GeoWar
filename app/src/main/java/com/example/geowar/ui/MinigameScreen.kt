@@ -6,6 +6,7 @@ import android.hardware.SensorEvent
 import android.hardware.SensorEventListener
 import android.hardware.SensorManager
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
@@ -15,6 +16,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -24,15 +26,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Warning
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.Icon
-import androidx.compose.material3.LinearProgressIndicator
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Slider
-import androidx.compose.material3.Text
+import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -42,8 +36,108 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.delay
+
+private enum class MinigameState {
+    HACKING_SEQUENCE,
+    DEFUSE_MINIGAME
+}
+
+@Composable
+fun HackingProgress(
+    targetName: String,
+    onHackingComplete: () -> Unit,
+    onCancel: () -> Unit,
+) {
+    var progress by remember { mutableFloatStateOf(0f) }
+
+    val animatedProgress by animateFloatAsState(
+        targetValue = progress,
+        animationSpec = ProgressIndicatorDefaults.ProgressAnimationSpec,
+        label = "progressAnimation"
+    )
+
+    LaunchedEffect(Unit) {
+        val hackingTime = 5000L // 5 seconds
+        val steps = 100
+        val delayPerStep = hackingTime / steps
+
+        for (i in 1..steps) {
+            delay(delayPerStep)
+            progress = i / steps.toFloat()
+        }
+        delay(300) // small delay to show 100%
+        onHackingComplete()
+    }
+
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color.Black.copy(alpha = 0.8f)),
+        contentAlignment = Alignment.Center
+    ) {
+        Card(
+            shape = MaterialTheme.shapes.large,
+            colors = CardDefaults.cardColors(containerColor = Color.Black),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(32.dp)
+        ) {
+            Column(
+                modifier = Modifier.padding(24.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center
+            ) {
+                Text(
+                    text = "Target $targetName trovato",
+                    style = MaterialTheme.typography.headlineSmall,
+                    color = Color.Cyan,
+                    fontWeight = FontWeight.Bold
+                )
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                Text(
+                    text = "Hackeraggio in corso!",
+                    style = MaterialTheme.typography.titleLarge,
+                    color = Color.White
+                )
+
+                Spacer(modifier = Modifier.height(24.dp))
+
+                LinearProgressIndicator(
+                    progress = { animatedProgress },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(16.dp),
+                    color = Color.Cyan,
+                    trackColor = Color.DarkGray
+                )
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                Text(
+                    text = "${(animatedProgress * 100).toInt()}%",
+                    color = Color.White,
+                    style = MaterialTheme.typography.bodyLarge,
+                    fontWeight = FontWeight.Bold
+                )
+
+                Spacer(modifier = Modifier.height(24.dp))
+
+                OutlinedButton(
+                    onClick = onCancel,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text("ANNULLA")
+                }
+            }
+        }
+    }
+}
+
 
 @Composable
 fun MinigameScreen(
@@ -51,6 +145,19 @@ fun MinigameScreen(
     onWin: () -> Unit,
     onLose: (Boolean) -> Unit // Boolean indicates if cooldown should be applied
 ) {
+
+    var minigameState by remember { mutableStateOf(MinigameState.HACKING_SEQUENCE) }
+
+    if (minigameState == MinigameState.HACKING_SEQUENCE) {
+        HackingProgress(
+            targetName = targetName,
+            onHackingComplete = { minigameState = MinigameState.DEFUSE_MINIGAME },
+            onCancel = { onLose(false) } // no cooldown
+        )
+        return // Important to not continue
+    }
+
+
     val context = LocalContext.current
     val sensorManager = remember { context.getSystemService(Context.SENSOR_SERVICE) as SensorManager }
     val accelerometer = remember { sensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER) }
@@ -60,25 +167,25 @@ fun MinigameScreen(
     var velocity by remember { mutableStateOf(Offset.Zero) }
     var progress by remember { mutableFloatStateOf(0f) }
     var isRunning by remember { mutableStateOf(true) }
-    
-    var showWinDialog by remember { mutableStateOf(false) } 
-    var showLoseDialog by remember { mutableStateOf(false) } 
-    
+
+    var showWinDialog by remember { mutableStateOf(false) }
+    var showLoseDialog by remember { mutableStateOf(false) }
+
     // Timer State
     var timeLeft by remember { mutableLongStateOf(30L) }
 
     // Difficulty Settings
-    var sensitivity by remember { mutableFloatStateOf(1.5f) } 
+    val sensitivity = 1.5f // Hardcoded sensitivity
     val friction = 0.95f
     val ballRadius = 20.dp
     val targetRadius = 60.dp
 
-    DisposableEffect(sensitivity) {
+    DisposableEffect(Unit) { // sensitivity is now a constant, so we can use Unit
         val listener = object : SensorEventListener {
             override fun onSensorChanged(event: SensorEvent?) {
                 if (event != null && isRunning) {
-                    val ax = -event.values[0] 
-                    val ay = event.values[1] 
+                    val ax = -event.values[0]
+                    val ay = event.values[1]
 
                     // Update velocity using dynamic sensitivity
                     velocity += Offset(ax * sensitivity, ay * sensitivity)
@@ -94,7 +201,7 @@ fun MinigameScreen(
             sensorManager.unregisterListener(listener)
         }
     }
-    
+
     // Timer Loop
     LaunchedEffect(isRunning) {
         if (isRunning) {
@@ -103,7 +210,7 @@ fun MinigameScreen(
                 delay(100) // Aggiorna ogni 100ms
                 val elapsed = (System.currentTimeMillis() - startTime) / 1000
                 timeLeft = (30 - elapsed).coerceAtLeast(0)
-                
+
                 if (timeLeft == 0L) {
                     isRunning = false
                     showLoseDialog = true
@@ -111,18 +218,18 @@ fun MinigameScreen(
             }
         }
     }
-    
+
     // Physics Loop
     LaunchedEffect(isRunning) {
         while (isRunning) {
             delay(16) // ~60 FPS
-            
+
             // Apply Velocity
             ballPosition += velocity
-            
+
             // Apply Friction
             velocity *= friction
-            
+
             // Bounds check (soft bounce or clamp)
             val maxDist = 400f
             if (ballPosition.x < -maxDist) { ballPosition = ballPosition.copy(x = -maxDist); velocity = velocity.copy(x = -velocity.x * 0.5f) }
@@ -134,22 +241,22 @@ fun MinigameScreen(
 
     val density = LocalDensity.current
     val targetRadiusPx = with(density) { targetRadius.toPx() }
-    
+
     // Progress Logic
-    LaunchedEffect(ballPosition) {
+    LaunchedEffect(ballPosition, isRunning) { // Added isRunning to dependencies
         if (isRunning) {
-             val distance = ballPosition.getDistance()
-             if (distance < targetRadiusPx) {
-                 progress += 0.003f 
-             } else {
-                 progress -= 0.001f 
-             }
-             progress = progress.coerceIn(0f, 1f)
-             
-             if (progress >= 1f) {
-                 isRunning = false
-                 showWinDialog = true 
-             }
+            val distance = ballPosition.getDistance()
+            if (distance < targetRadiusPx) {
+                progress += 0.003f
+            } else {
+                progress -= 0.001f
+            }
+            progress = progress.coerceIn(0f, 1f)
+
+            if (progress >= 1f) {
+                isRunning = false
+                showWinDialog = true
+            }
         }
     }
 
@@ -163,30 +270,18 @@ fun MinigameScreen(
         ) {
             Text("DEFUSE THE BOMB!", color = Color.Red, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
             Text("Target: $targetName", color = Color.LightGray, style = MaterialTheme.typography.bodyMedium)
-            
+
             // Timer Display
             Text(
-                text = "Time Left: ${timeLeft}s", 
+                text = "Time Left: ${timeLeft}s",
                 color = if (timeLeft <= 5) Color.Red else Color.White,
                 style = MaterialTheme.typography.headlineMedium,
                 fontWeight = FontWeight.Bold
             )
-            
-            Text("Keep the ball inside the blue circle", color = Color.White)
-            
-            Spacer(modifier = Modifier.height(20.dp))
-            
-            // Difficulty Slider
-            Text("Accelerometer Sensitivity: ${String.format("%.1f", sensitivity)}", color = Color.Yellow)
-            Slider(
-                value = sensitivity,
-                onValueChange = { sensitivity = it },
-                valueRange = 0.5f..5.0f,
-                steps = 9,
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp)
-            )
 
-            Spacer(modifier = Modifier.height(10.dp))
+            Text("Keep the ball inside the blue circle", color = Color.White)
+
+            Spacer(modifier = Modifier.height(20.dp))
 
             LinearProgressIndicator(
                 progress = { progress },
@@ -194,7 +289,7 @@ fun MinigameScreen(
                 color = Color.Green,
                 trackColor = Color.DarkGray,
             )
-            
+
             Box(
                 modifier = Modifier
                     .weight(1f)
@@ -203,7 +298,7 @@ fun MinigameScreen(
             ) {
                 Canvas(modifier = Modifier.fillMaxSize()) {
                     val center = Offset(size.width / 2, size.height / 2)
-                    
+
                     // Draw Target Zone
                     drawCircle(
                         color = Color.Blue.copy(alpha = 0.3f),
@@ -216,17 +311,17 @@ fun MinigameScreen(
                         center = center,
                         style = Stroke(width = 4.dp.toPx())
                     )
-                    
+
                     // Draw Ball
                     val ballCenter = center + ballPosition
                     val color = if (ballPosition.getDistance() < targetRadiusPx) Color.Green else Color.Red
-                    
+
                     drawCircle(
                         color = color,
                         radius = ballRadius.toPx(),
                         center = ballCenter
                     )
-                    
+
                     // Draw connecting line if far
                     if (ballPosition.getDistance() > targetRadiusPx) {
                         drawLine(
@@ -238,8 +333,8 @@ fun MinigameScreen(
                     }
                 }
             }
-            
-            Button(onClick = { onLose(false) }) { 
+
+            Button(onClick = { onLose(false) }) {
                 Text("Give Up (Exit)")
             }
         }
@@ -283,9 +378,9 @@ fun MinigameScreen(
                             )
                         }
                     }
-                    
+
                     Spacer(modifier = Modifier.height(16.dp))
-                    
+
                     Text(
                         text = "You conquered the target:",
                         color = Color.White
@@ -296,9 +391,9 @@ fun MinigameScreen(
                         fontWeight = FontWeight.Bold,
                         style = MaterialTheme.typography.headlineSmall
                     )
-                    
+
                     Spacer(modifier = Modifier.height(16.dp))
-                    
+
                     Text(
                         text = "Great job agent. The zone is now under your team's control.",
                         color = Color.LightGray,
@@ -306,7 +401,7 @@ fun MinigameScreen(
                     )
 
                     Spacer(modifier = Modifier.height(24.dp))
-                    
+
                     Button(
                         onClick = onWin,
                         colors = ButtonDefaults.buttonColors(containerColor = Color.Green),
@@ -317,7 +412,7 @@ fun MinigameScreen(
                 }
             }
         }
-        
+
         // --- POPUP SCONFITTA ---
         AnimatedVisibility(
             visible = showLoseDialog,
@@ -357,25 +452,25 @@ fun MinigameScreen(
                             )
                         }
                     }
-                    
+
                     Spacer(modifier = Modifier.height(16.dp))
-                    
+
                     Text(
                         text = "Time expired!",
                         color = Color.White
                     )
-                    
+
                     Spacer(modifier = Modifier.height(16.dp))
-                    
+
                     Text(
                         text = "The system detected your intrusion. You must wait before retrying.",
                         color = Color.LightGray,
                         style = MaterialTheme.typography.bodyMedium,
-                        textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                        textAlign = TextAlign.Center
                     )
 
                     Spacer(modifier = Modifier.height(24.dp))
-                    
+
                     Button(
                         onClick = { onLose(true) },
                         colors = ButtonDefaults.buttonColors(containerColor = Color.Red),
