@@ -2,7 +2,7 @@ import os
 import time
 import random
 import math
-
+import string
 from flask import Flask, request, jsonify
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
@@ -42,10 +42,13 @@ class Lobby(db.Model):
     status = db.Column(db.String(20), default="WAITING")  # WAITING, ACTIVE, FINISHED
     created_at = db.Column(db.Float, default=time.time)
 
-    # CONTATORI RICHIESTI
     player_count = db.Column(db.Integer, default=0)
     targets_red = db.Column(db.Integer, default=0)
     targets_blue = db.Column(db.Integer, default=0)
+
+    # 🔐 LOBBY PRIVATA
+    is_private = db.Column(db.Boolean, default=False)
+    join_code = db.Column(db.String(10), unique=True, nullable=True)
 
 
 class User(db.Model):
@@ -115,6 +118,15 @@ class Stun(db.Model):
 
 
 # ---------------- HELPERS ----------------
+
+def generate_lobby_code(length=6):
+    chars = string.ascii_uppercase + string.digits
+    while True:
+        code = ''.join(random.choice(chars) for _ in range(length))
+        if not Lobby.query.filter_by(join_code=code).first():
+            return code
+
+
 
 def get_json():
     data = request.get_json(silent=True)
@@ -221,6 +233,92 @@ with app.app_context():
 @app.route("/")
 def home():
     return jsonify({"status": "API online", "message": "GeoWar Server Ready"}), 200
+
+
+# ------PRIVATE LOBBY------------
+@app.route("/lobby/create_private", methods=["POST"])
+def create_private_lobby():
+    data = get_json()
+    if not data:
+        return jsonify({"message": "JSON mancante"}), 400
+
+    user_id = data.get("user_id")
+    if not user_id:
+        return jsonify({"message": "User ID mancante"}), 400
+
+    user = User.query.get(user_id)
+    if not user or user.banned:
+        return jsonify({"message": "Utente non valido"}), 403
+
+    if user.lobby_id:
+        return jsonify({"message": "Sei già in una lobby"}), 400
+
+    code = generate_lobby_code()
+
+    lobby = Lobby(
+        is_private=True,
+        join_code=code,
+        status="WAITING",
+        player_count=1
+    )
+
+    db.session.add(lobby)
+    db.session.flush()  # ottieni lobby.id
+
+    user.lobby_id = lobby.id
+    user.team = None
+
+    err = db_commit_or_error()
+    if err:
+        return err
+
+    return jsonify({
+        "message": "Lobby privata creata",
+        "lobby_id": lobby.id,
+        "join_code": code
+    }), 200
+
+
+
+@app.route("/lobby/join_by_code", methods=["POST"])
+def join_lobby_by_code():
+    data = get_json()
+    if not data:
+        return jsonify({"message": "JSON mancante"}), 400
+
+    user_id = data.get("user_id")
+    code = (data.get("code") or "").strip().upper()
+
+    if not user_id or not code:
+        return jsonify({"message": "Dati mancanti"}), 400
+
+    user = User.query.get(user_id)
+    if not user or user.banned:
+        return jsonify({"message": "Utente non valido"}), 403
+
+    if user.lobby_id:
+        return jsonify({"message": "Sei già in una lobby"}), 400
+
+    lobby = Lobby.query.filter_by(join_code=code, is_private=True).first()
+    if not lobby:
+        return jsonify({"message": "Codice lobby non valido"}), 404
+
+    if lobby.player_count >= LOBBY_MAX_PLAYERS:
+        return jsonify({"message": "Lobby piena"}), 409
+
+    user.lobby_id = lobby.id
+    user.team = None
+    lobby.player_count += 1
+
+    err = db_commit_or_error()
+    if err:
+        return err
+
+    return jsonify({
+        "message": "Entrato nella lobby privata",
+        "lobby_id": lobby.id
+    }), 200
+
 
 
 # ---------- AUTH ----------
@@ -435,7 +533,7 @@ def update_user_details(user_id):
 
 @app.route("/lobbies", methods=["GET"])
 def get_lobbies():
-    lobbies = Lobby.query.filter(Lobby.status.in_(['WAITING', 'ACTIVE'])).all()
+    lobbies = Lobby.query.filter(Lobby.status.in_(['WAITING', 'ACTIVE']),Lobby.is_private == False).all()
     result = []
     for lobby in lobbies:
         result.append({
@@ -589,6 +687,7 @@ def set_team():
 
     if not user_id or not team:
         return jsonify({"success": False, "message": "Dati mancanti"}), 400
+
     if team not in ALLOWED_TEAMS:
         return jsonify({"success": False, "message": "Team non valido (usa RED o BLUE)"}), 400
 
@@ -598,44 +697,74 @@ def set_team():
     if user.banned:
         return jsonify({"success": False, "message": "Utente bannato"}), 403
 
-    if user.lobby_id:
-        lobby = Lobby.query.get(user.lobby_id)
-        if not lobby:
-            return jsonify({"success": False, "message": "Lobby non valida"}), 400
-
-        # limite team (solo se sta entrando in quel team o cambiando)
-        team_count = User.query.filter_by(lobby_id=user.lobby_id, team=team).count()
-        if user.team != team and team_count >= LOBBY_TEAM_SIZE:
-            return jsonify({"success": False, "message": f"Team {team} completo nella lobby"}), 409
-
+    # ---------- UTENTE SENZA LOBBY ----------
+    if not user.lobby_id:
         user.team = team
         err = db_commit_or_error()
         if err:
             return err
+        return jsonify({"success": True, "message": f"Team aggiornato a {team}"}), 200
 
-        red_count = User.query.filter_by(lobby_id=user.lobby_id, team="RED").count()
-        blue_count = User.query.filter_by(lobby_id=user.lobby_id, team="BLUE").count()
+    # ---------- UTENTE IN LOBBY ----------
+    lobby = Lobby.query.get(user.lobby_id)
+    if not lobby:
+        return jsonify({"success": False, "message": "Lobby non valida"}), 400
 
-        # avvio match: almeno 1 per team
-        if lobby.status == "WAITING" and red_count >= 1 and blue_count >= 1:
-            lobby.status = "ACTIVE"
-            err2 = db_commit_or_error()
-            if err2:
-                return err2
+    # limite dimensione team
+    team_count = User.query.filter_by(
+        lobby_id=lobby.id,
+        team=team
+    ).count()
 
-            # genera target lobby e reset contatori
-            err3 = generate_lobby_targets(lobby.id)
-            if err3:
-                return err3
+    if user.team != team and team_count >= LOBBY_TEAM_SIZE:
+        return jsonify({
+            "success": False,
+            "message": f"Team {team} completo nella lobby"
+        }), 409
 
-        return jsonify({"success": True, "message": f"Team aggiornato a {user.team}"}), 200
-
-    # fallback utenti senza lobby
     user.team = team
+
     err = db_commit_or_error()
     if err:
         return err
-    return jsonify({"success": True, "message": f"Team aggiornato a {user.team}"}), 200
+
+    # ---------- VERIFICA AVVIO MATCH ----------
+    total_players = User.query.filter_by(lobby_id=lobby.id).count()
+    red_count = User.query.filter_by(lobby_id=lobby.id, team="RED").count()
+    blue_count = User.query.filter_by(lobby_id=lobby.id, team="BLUE").count()
+
+    should_start = False
+
+    # lobby privata → basta 2 giocatori
+    if lobby.is_private and total_players >= 2:
+        should_start = True
+
+    # lobby pubblica → almeno 1 per team
+    if not lobby.is_private and red_count >= 1 and blue_count >= 1:
+        should_start = True
+
+    if lobby.status == "WAITING" and should_start:
+        lobby.status = "ACTIVE"
+
+        err2 = db_commit_or_error()
+        if err2:
+            return err2
+
+        # genera target lobby
+        err3 = generate_lobby_targets(lobby.id)
+        if err3:
+            return err3
+
+        return jsonify({
+            "success": True,
+            "message": "Match avviato",
+            "lobby_status": lobby.status
+        }), 200
+
+    return jsonify({
+        "success": True,
+        "message": f"Team aggiornato a {team}"
+    }), 200
 
 
 # ---------- TARGETS ----------

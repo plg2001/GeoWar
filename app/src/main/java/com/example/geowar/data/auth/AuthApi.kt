@@ -74,4 +74,28 @@ interface AuthApi {
 
     @GET("/lobby/{lobby_id}/users")
     suspend fun getLobbyUsers(@Path("lobby_id") lobbyId: Int): List<UserResponse>
+
+    // PRIVATE LOBBY
+    @POST("/lobby/create_private")
+    suspend fun createPrivateLobby(@Body request: CreatePrivateLobbyRequest): CreatePrivateLobbyResponse
+
+    @POST("/lobby/join_by_code")
+    suspend fun joinLobbyByCode(@Body request: JoinLobbyByCodeRequest): JoinLobbyResponse
 }
+
+// --- Data Classes for Private Lobby ---
+
+data class CreatePrivateLobbyRequest(
+    val user_id: Int
+)
+
+data class CreatePrivateLobbyResponse(
+    val message: String,
+    val lobby_id: Int,
+    val join_code: String
+)
+
+data class JoinLobbyByCodeRequest(
+    val user_id: Int,
+    val code: String
+)

@@ -44,6 +44,7 @@ import com.google.android.libraries.identity.googleid.GetGoogleIdOption
 import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
 import androidx.core.content.edit
 import com.example.geowar.ui.AccountScreen
+import com.example.geowar.ui.lobby.PrivateMatchScreen
 import java.util.UUID
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
@@ -200,7 +201,7 @@ class MainActivity : ComponentActivity() {
                                     navController.navigate("lobby_list")
                                 },
                                 onPrivateMatchClick = {
-                                    Toast.makeText(this@MainActivity, "In arrivo...", Toast.LENGTH_SHORT).show()
+                                    navController.navigate("private_match_options")
                                 },
                                 onLogoutClick = {
                                     sharedPref.edit { clear() }
@@ -210,6 +211,50 @@ class MainActivity : ComponentActivity() {
                                 },
                                 onAccountClick = {
                                     navController.navigate("account")
+                                }
+                            )
+                        }
+
+                        // -----------------------------
+                        // 3.1. Private Match Options
+                        // -----------------------------
+                        composable("private_match_options") {
+                            PrivateMatchScreen(
+                                navController = navController,
+                                onJoinLobby = {
+                                    lobbyCode ->
+                                    if (currentUserId != null) {
+                                        lobbyViewModel.joinLobbyByCode(currentUserId!!, lobbyCode) { response, msg ->
+                                            if (response != null) {
+                                                Toast.makeText(this@MainActivity, "Joined Lobby: ${response.lobby_id}", Toast.LENGTH_SHORT).show()
+                                                navController.navigate("team_selection") {
+                                                    popUpTo("lobby_selection") { inclusive = true }
+                                                }
+                                            } else {
+                                                Toast.makeText(this@MainActivity, msg, Toast.LENGTH_LONG).show()
+                                            }
+                                        }
+                                    } else {
+                                        Toast.makeText(this@MainActivity, "Error: User not identified", Toast.LENGTH_SHORT).show()
+                                        navController.navigate("auth")
+                                    }
+                                },
+                                onCreateLobby = {
+                                    if (currentUserId != null) {
+                                        lobbyViewModel.createPrivateLobby(currentUserId!!) { response, msg ->
+                                            if (response != null) {
+                                                Toast.makeText(this@MainActivity, "Created Lobby: ${response.join_code}", Toast.LENGTH_LONG).show()
+                                                navController.navigate("team_selection") {
+                                                    popUpTo("lobby_selection") { inclusive = true }
+                                                }
+                                            } else {
+                                                Toast.makeText(this@MainActivity, msg, Toast.LENGTH_LONG).show()
+                                            }
+                                        }
+                                    } else {
+                                        Toast.makeText(this@MainActivity, "Error: User not identified", Toast.LENGTH_SHORT).show()
+                                        navController.navigate("auth")
+                                    }
                                 }
                             )
                         }
