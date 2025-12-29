@@ -32,6 +32,8 @@ db = SQLAlchemy(app)
 ALLOWED_TEAMS = {"RED", "BLUE"}
 LOBBY_MAX_PLAYERS = 20
 LOBBY_TEAM_SIZE = 10
+MATCH_DURATION_SECONDS = 300  # 5 minuti
+TARGET_WIN_CONDITION = 10
 
 
 # ---------------- MODELS ----------------
@@ -41,6 +43,8 @@ class Lobby(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     status = db.Column(db.String(20), default="WAITING")  # WAITING, ACTIVE, FINISHED
     created_at = db.Column(db.Float, default=time.time)
+    match_start_time = db.Column(db.Float, nullable=True)
+    winner_team = db.Column(db.String(10), nullable=True) # RED, BLUE, DRAW
 
     player_count = db.Column(db.Integer, default=0)
     targets_red = db.Column(db.Integer, default=0)
@@ -181,25 +185,35 @@ def lobby_adjust_target_counters(lobby: Lobby, old_owner: str, new_owner: str):
         lobby.targets_blue += 1
 
 
-def generate_lobby_targets(lobby_id: int, count: int = 20):
-    """Genera un solo target fisso per una lobby, owner NEUTRAL."""
+def generate_lobby_targets(lobby_id: int):
+    """Genera target fissi per una lobby, owner NEUTRAL."""
     lobby = Lobby.query.get(lobby_id)
     if not lobby:
         return
 
-    # Coordinate fisse
-    lat = 41.4704
-    lon = 13.1820
+    coordinates = [
+        (41.4704, 13.1820),
+        (41.5949700, 12.65961228),
+        (41.5959700, 12.65961228),
+        (41.5969700, 12.65961228),
+        (41.5979700, 12.65961228),
+        (41.5989700, 12.65961228),
+        (41.5999700, 12.65961228),
+        (41.5919700, 12.65961228),
+        (41.5929700, 12.65961228),
+        (41.5939700, 12.65961228),
+        (41.5899700, 12.65961228),
+    ]
 
-    target = Target(
-        name=f"Obiettivo Lobby {lobby_id}",
-        lat=lat,
-        lon=lon,
-        owner_team="NEUTRAL",
-        lobby_id=lobby_id,
-    )
-
-    db.session.add(target)
+    for i, (lat, lon) in enumerate(coordinates, start=1):
+        target = Target(
+            name=f"Obiettivo Lobby {lobby_id} #{i}",
+            lat=lat,
+            lon=lon,
+            owner_team="NEUTRAL",
+            lobby_id=lobby_id,
+        )
+        db.session.add(target)
 
     # reset contatori target lobby (tutti neutrali)
     lobby.targets_red = 0
@@ -207,8 +221,6 @@ def generate_lobby_targets(lobby_id: int, count: int = 20):
 
     err = db_commit_or_error()
     return err
-
-
 
 # ---------------- INIT ----------------
 
@@ -656,24 +668,58 @@ def get_lobby_users(lobby_id):
     if not lobby:
         return jsonify({"message": "Lobby non trovata"}), 404
 
-    # Utenti attivi nella lobby specificata
     users = User.query.filter_by(lobby_id=lobby_id, banned=False).all()
-
     now = time.time()
-    ACTIVE_SECONDS = 20  # Considera attivi gli utenti negli ultimi 20 secondi
+    ACTIVE_SECONDS = 20
 
-    return jsonify([
-        {
+    results = []
+    for u in users:
+        is_active = (now - u.last_active) < ACTIVE_SECONDS
+
+        # Se l'utente non ha mai inviato una posizione valida,
+        # restituiamo None così il frontend può ignorare il marker
+        payload = {
             "id": u.id,
             "username": u.username,
             "team": u.team,
-            "lat": u.lat,
-            "lon": u.lon,
             "avatar_seed": u.avatar_seed,
-            "is_active": (now - u.last_active) < ACTIVE_SECONDS,
+            "is_active": is_active,
+            "lat": u.lat if u.lat != 0.0 else None,
+            "lon": u.lon if u.lon != 0.0 else None
         }
-        for u in users
-    ]), 200
+        results.append(payload)
+
+    return jsonify(results), 200
+
+@app.route("/lobby/<int:lobby_id>/status", methods=["GET"])
+def get_lobby_status(lobby_id):
+    lobby = Lobby.query.get(lobby_id)
+    if not lobby:
+        return jsonify({"message": "Lobby non trovata"}), 404
+
+    time_left = -1
+    if lobby.status == "ACTIVE" and lobby.match_start_time:
+        elapsed = time.time() - lobby.match_start_time
+        time_left = max(0, MATCH_DURATION_SECONDS - elapsed)
+
+        # Condizione di vittoria #2: tempo scaduto
+        if time_left == 0:
+            lobby.status = "FINISHED"
+            if lobby.targets_red > lobby.targets_blue:
+                lobby.winner_team = "RED"
+            elif lobby.targets_blue > lobby.targets_red:
+                lobby.winner_team = "BLUE"
+            else:
+                lobby.winner_team = "DRAW"
+            db_commit_or_error()
+
+    return jsonify({
+        "status": lobby.status,
+        "winner_team": lobby.winner_team,
+        "time_left": time_left,
+        "targets_red": lobby.targets_red,
+        "targets_blue": lobby.targets_blue
+    }), 200
 
 
 @app.route("/set_team", methods=["POST"])
@@ -745,6 +791,7 @@ def set_team():
 
     if lobby.status == "WAITING" and should_start:
         lobby.status = "ACTIVE"
+        lobby.match_start_time = time.time()
 
         err2 = db_commit_or_error()
         if err2:
@@ -818,6 +865,10 @@ def hack_target():
     if target.lobby_id is not None and user.lobby_id is None:
         return jsonify({"message": "Devi essere in una lobby per hackare questo target"}), 403
 
+    lobby = Lobby.query.get(user.lobby_id)
+    if lobby and lobby.status == "FINISHED":
+        return jsonify({"message": "La partita è già terminata"}), 400
+
     old_owner = target.owner_team
     new_owner = user.team
 
@@ -830,12 +881,16 @@ def hack_target():
 
     # aggiorna contatori SOLO per target di lobby (per i globali non hai contatori lobby)
     if target.lobby_id is not None:
-        lobby = Lobby.query.get(target.lobby_id)
         lobby_adjust_target_counters(lobby, old_owner, new_owner)
 
     # aggiorna target
     target.owner_team = new_owner
     target.last_hacked = time.time()
+
+    # Condizione di vittoria #1: 10 target
+    if lobby and (lobby.targets_red >= TARGET_WIN_CONDITION or lobby.targets_blue >= TARGET_WIN_CONDITION):
+        lobby.status = "FINISHED"
+        lobby.winner_team = new_owner
 
     err = db_commit_or_error()
     if err:
@@ -845,7 +900,6 @@ def hack_target():
 
 
 # ---------- LIVE POSITIONS ----------
-
 @app.route("/update_position", methods=["POST"])
 def update_position():
     data = get_json()
@@ -853,43 +907,48 @@ def update_position():
         return jsonify({"message": "JSON non valido"}), 400
 
     user_id = data.get("user_id")
-    lat = data.get("lat")
-    lon = data.get("lon")
-
-    if user_id is None or lat is None or lon is None:
-        return jsonify({"message": "Dati mancanti"}), 400
+    lat = float(data.get("lat", 0))
+    lon = float(data.get("lon", 0))
+    # Il client dovrebbe inviare anche il momento esatto in cui ha preso la posizione
+    client_timestamp = data.get("timestamp", time.time())
 
     user = User.query.get(user_id)
-    if not user or user.banned:
-        return jsonify({"message": "Utente non valido"}), 403
+    if not user:
+        return jsonify({"message": "Utente non trovato"}), 404
 
-    user.lat = float(lat)
-    user.lon = float(lon)
-    user.last_active = time.time()
+    # BUG FIX: Ignora la posizione se è palesemente 0,0 (spawn di errore)
+    if lat == 0.0 or lon == 0.0:
+        return jsonify({"success": False, "message": "Coordinate non valide"}), 400
 
-    err = db_commit_or_error()
-    if err:
-        return err
+    # BUG FIX: Se il timestamp inviato è più vecchio di quello già presente, ignoralo
+    # Questo evita che pacchetti "ritardatari" o vecchie cache sporchino il DB
+    if client_timestamp < user.last_active:
+        return jsonify({"success": False, "message": "Dato obsoleto ignorato"}), 200
 
+    user.lat = lat
+    user.lon = lon
+    user.last_active = client_timestamp # Usiamo il timestamp del client
+
+    db.session.commit()
     return jsonify({"success": True}), 200
-
 
 @app.route("/users_positions", methods=["GET"])
 def users_positions():
     now = time.time()
-    ACTIVE_SECONDS = 10
+    ACTIVE_SECONDS = 15 # Aumentato leggermente per stabilità
 
+    # BUG FIX: Filtra solo utenti attivi E che hanno una posizione diversa da 0,0
     users = User.query.filter(
         User.last_active >= now - ACTIVE_SECONDS,
-        User.banned == False
+        User.banned == False,
+        User.lat != 0.0,
+        User.lon != 0.0
     ).all()
 
     return jsonify([
         {"id": u.id, "username": u.username, "lat": u.lat, "lon": u.lon, "team": u.team, "lobby_id": u.lobby_id}
         for u in users
     ]), 200
-
-
 # ---------- ADMIN ----------
 
 @app.route("/admin/users", methods=["GET"])
@@ -1042,7 +1101,7 @@ def get_bomb_difficulty():
     if not lobby:
         # Should not happen if user.lobby_id is set, but good for safety
         return jsonify({"message": "Lobby non trovata"}), 404
-        
+
     if lobby.status != "ACTIVE":
         return jsonify({"message": "La partita non è ancora attiva"}), 400
 
@@ -1054,14 +1113,14 @@ def get_bomb_difficulty():
 
     # Calcolo della difficoltà
     # Più target ha il team, più difficile è il gioco (maggiore sensibilità)
-    BASE_SENSITIVITY = 0.8  # Sensibilità di base
-    SENSITIVITY_PER_TARGET = 0.22  # Aumento per ogni target conquistato
+    BASE_SENSITIVITY = 20  # Sensibilità di base
+    SENSITIVITY_PER_TARGET = -2  # Aumento per ogni target conquistato
 
     difficulty_multiplier = BASE_SENSITIVITY + (num_team_targets * SENSITIVITY_PER_TARGET)
 
     # Aggiungiamo un cap massimo per non renderlo impossibile
-    max_difficulty = 3.0
-    final_difficulty = min(difficulty_multiplier, max_difficulty)
+    max_difficulty = 0.1
+    final_difficulty = max(difficulty_multiplier, max_difficulty)
 
     return jsonify({
         "difficulty_multiplier": final_difficulty,
