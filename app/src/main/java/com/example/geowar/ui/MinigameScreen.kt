@@ -91,7 +91,7 @@ fun HackingProgress(
                 verticalArrangement = Arrangement.Center
             ) {
                 Text(
-                    text = "Target $targetName trovato",
+                    text = "Target $targetName found",
                     style = MaterialTheme.typography.headlineSmall,
                     color = Color.Cyan,
                     fontWeight = FontWeight.Bold
@@ -100,7 +100,7 @@ fun HackingProgress(
                 Spacer(modifier = Modifier.height(8.dp))
 
                 Text(
-                    text = "Hackeraggio in corso!",
+                    text = "Hacking in progress",
                     style = MaterialTheme.typography.titleLarge,
                     color = Color.White
                 )
