@@ -219,6 +219,7 @@ class MainActivity : ComponentActivity() {
                         // 3.1. Private Match Options
                         // -----------------------------
                         composable("private_match_options") {
+                            var createdLobbyCode by remember { mutableStateOf<String?>(null) }
                             PrivateMatchScreen(
                                 navController = navController,
                                 onJoinLobby = {
@@ -243,10 +244,7 @@ class MainActivity : ComponentActivity() {
                                     if (currentUserId != null) {
                                         lobbyViewModel.createPrivateLobby(currentUserId!!) { response, msg ->
                                             if (response != null) {
-                                                Toast.makeText(this@MainActivity, "Created Lobby: ${response.join_code}", Toast.LENGTH_LONG).show()
-                                                navController.navigate("team_selection") {
-                                                    popUpTo("lobby_selection") { inclusive = true }
-                                                }
+                                                createdLobbyCode = response.join_code
                                             } else {
                                                 Toast.makeText(this@MainActivity, msg, Toast.LENGTH_LONG).show()
                                             }
@@ -254,6 +252,13 @@ class MainActivity : ComponentActivity() {
                                     } else {
                                         Toast.makeText(this@MainActivity, "Error: User not identified", Toast.LENGTH_SHORT).show()
                                         navController.navigate("auth")
+                                    }
+                                },
+                                lobbyCode = createdLobbyCode,
+                                onLobbyCodeDialogDismiss = {
+                                    createdLobbyCode = null
+                                    navController.navigate("team_selection") {
+                                        popUpTo("lobby_selection") { inclusive = true }
                                     }
                                 }
                             )
