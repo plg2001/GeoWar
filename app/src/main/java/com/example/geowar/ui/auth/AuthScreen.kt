@@ -19,6 +19,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -26,6 +27,7 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.geowar.R
 
 @Composable
 fun AuthScreen(
@@ -222,6 +224,13 @@ fun AuthScreen(
                     modifier = Modifier.fillMaxWidth().height(56.dp),
                     colors = ButtonDefaults.buttonColors(containerColor = Color.White)
                 ) {
+                    Icon(
+                        painter = painterResource(id = R.drawable.ic_google_logo_vector),
+                        contentDescription = "Google logo",
+                        modifier = Modifier.size(24.dp),
+                        tint = Color.Unspecified
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
                     Text(
                         text = "Continue with Google",
                         color = Color.Black,
@@ -266,4 +275,3 @@ fun CyberTextField(
         shape = CutCornerShape(bottomStart = 16.dp, topEnd = 16.dp)
     )
 }
-
