@@ -81,6 +81,9 @@ interface AuthApi {
 
     @POST("/lobby/join_by_code")
     suspend fun joinLobbyByCode(@Body request: JoinLobbyByCodeRequest): JoinLobbyResponse
+
+    @GET("/bomb/difficulty")
+    suspend fun getBombDifficulty(@Query("user_id") userId: Int): BombDifficultyResponse
 }
 
 // --- Data Classes for Private Lobby ---

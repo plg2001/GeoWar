@@ -74,7 +74,6 @@ data class TargetResponse(
     val owner: String
 )
 
-// NUOVO: Richiesta aggiornamento posizione
 data class UpdatePositionRequest(
     val user_id: Int,
     val lat: Double,
@@ -97,4 +96,11 @@ data class JoinLobbyResponse(
     val lobby_id: String,
     val message: String,
     val team: String? = null
+)
+
+data class BombDifficultyResponse(
+    val difficulty_multiplier: Double,
+    val team_targets: Int,
+    val base_sensitivity: Double,
+    val sensitivity_per_target: Double
 )

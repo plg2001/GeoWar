@@ -48,6 +48,7 @@ import com.google.android.gms.maps.model.LatLng
 import com.google.android.gms.maps.model.MapStyleOptions
 import com.google.maps.android.compose.*
 import kotlinx.coroutines.launch
+import java.util.Locale
 import kotlin.math.max
 import kotlin.random.Random
 
@@ -255,7 +256,7 @@ fun MapScreen(
 
     val fusedLocationClient = remember { LocationServices.getFusedLocationProviderClient(context) }
 
-    // --- ViewModel state (come nel tuo codice) ---
+    // --- ViewModel state ---
     val playerPosition = mapViewModel.playerPosition
     val avatarSeed by remember { derivedStateOf { mapViewModel.avatarSeed } }
     val targets by remember { derivedStateOf { mapViewModel.targets } }
@@ -265,10 +266,12 @@ fun MapScreen(
     val otherPlayers by remember { derivedStateOf { mapViewModel.otherPlayers } }
     val currentLobbyId by remember { derivedStateOf { mapViewModel.currentLobbyId } }
     val gameCancelled by remember { derivedStateOf { mapViewModel.gameCancelled } }
+    val bombDifficulty by remember { derivedStateOf { mapViewModel.bombDifficulty } }
 
     // --- UI state ---
     var hasPermission by remember { mutableStateOf(false) }
     var showLogoutDialog by remember { mutableStateOf(false) }
+    var showDifficultyDialog by remember { mutableStateOf(false) }
     var isFabMenuExpanded by remember { mutableStateOf(false) }
 
     var showMinigame by remember { mutableStateOf(false) }
@@ -306,6 +309,13 @@ fun MapScreen(
 
     LaunchedEffect(Unit) {
         permissionLauncher.launch(Manifest.permission.ACCESS_FINE_LOCATION)
+    }
+
+    // Mostra il dialog quando la difficoltà viene caricata
+    LaunchedEffect(bombDifficulty) {
+        if (bombDifficulty != null) {
+            showDifficultyDialog = true
+        }
     }
 
     // --- Game cancelled dialog ---
@@ -375,7 +385,6 @@ fun MapScreen(
     // ✅ AVATAR CACHE (NO LAG)
     // --------------------------
 
-    // Mio avatar: 2 bitmap (con nome / senza nome) create UNA volta per seed
     var myAvatarCache by remember { mutableStateOf<AvatarCache?>(null) }
     val targetIconCache = remember { mutableStateMapOf<String, BitmapDescriptor>() }
     val baseTowerBitmap by remember {
@@ -480,6 +489,26 @@ fun MapScreen(
             )
         }
         return
+    }
+
+    // --- DIALOG CONFERMA DIFFICOLTÀ ---
+    if (showDifficultyDialog && bombDifficulty != null) {
+        CyberpunkDialog(
+            title = "INCOMING HACK",
+            message = "Accelerometer sensitivity for this hack will be set to ${String.format(Locale.US, "%.2f", bombDifficulty!!.difficulty_multiplier)}x based on your team's ${bombDifficulty!!.team_targets} controlled targets. Proceed?",
+            confirmText = "START HACK",
+            dismissText = "ABORT",
+            onConfirm = {
+                showDifficultyDialog = false
+                showMinigame = true // Avvia il minigioco
+                mapViewModel.clearBombDifficulty() // Pulisci lo stato
+            },
+            onDismiss = {
+                showDifficultyDialog = false
+                mapViewModel.clearBombDifficulty() // Pulisci lo stato
+            },
+            icon = Icons.Default.Sensors
+        )
     }
 
     // --------------------------
@@ -789,17 +818,17 @@ fun MapScreen(
                         } else {
                             Button(
                                 onClick = {
+                                    currentMinigameTargetName = target.name
                                     if (isNeutral) {
                                         val colors = listOf("RED", "GREEN", "BLUE")
                                         currentMinigameColor = colors[Random.nextInt(colors.size)]
-                                        currentMinigameTargetName = target.name
                                         showMinigame = true
                                     } else {
                                         if (isCooldown) {
                                             Toast.makeText(context, "Access Denied: Security Cooldown Active", Toast.LENGTH_SHORT).show()
                                         } else {
-                                            currentMinigameTargetName = target.name
-                                            showMinigame = true
+                                            // Avvia la logica per la difficoltà
+                                            mapViewModel.fetchBombDifficulty()
                                         }
                                     }
                                 },

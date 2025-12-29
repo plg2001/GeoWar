@@ -9,6 +9,7 @@ import androidx.compose.runtime.setValue
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.geowar.data.ApiClient
+import com.example.geowar.data.auth.BombDifficultyResponse
 import com.example.geowar.data.auth.GenerateRandomTargetsRequest
 import com.example.geowar.data.auth.HackRequest
 import com.example.geowar.data.auth.JoinLobbyRequest
@@ -40,6 +41,9 @@ class MapViewModel(application: Application) : AndroidViewModel(application) {
         private set
 
     var targetsBlue by mutableStateOf(0)
+        private set
+
+    var bombDifficulty by mutableStateOf<BombDifficultyResponse?>(null)
         private set
 
     // Variabile per il target vicino (entro 20 metri)
@@ -267,6 +271,24 @@ class MapViewModel(application: Application) : AndroidViewModel(application) {
 
     fun clearNearbyTarget() {
         nearbyTarget = null
+    }
+
+    fun fetchBombDifficulty() {
+        viewModelScope.launch {
+            val userId = userRepository.getUserId()
+            if (userId != -1) {
+                try {
+                    bombDifficulty = ApiClient.authApi.getBombDifficulty(userId)
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                    // Potresti voler gestire l'errore in modo più esplicito, ad es. mostrando un messaggio
+                }
+            }
+        }
+    }
+
+    fun clearBombDifficulty() {
+        bombDifficulty = null
     }
 
     // Questa funzione ora viene chiamata dalla MapScreen solo dopo la vittoria del minigioco (o conquista diretta)

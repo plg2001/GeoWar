@@ -1023,6 +1023,52 @@ def generate_random_targets():
 
     return jsonify({"message": f"{count} target casuali generati con successo"}), 200
 
+# ---------------- BOMB GAME ----------------
+
+@app.route("/bomb/difficulty", methods=["GET"])
+def get_bomb_difficulty():
+    user_id = request.args.get("user_id", type=int)
+    if not user_id:
+        return jsonify({"message": "User ID mancante"}), 400
+
+    user = User.query.get(user_id)
+    if not user or user.banned:
+        return jsonify({"message": "Utente non valido"}), 403
+
+    if not user.lobby_id or not user.team:
+        return jsonify({"message": "Devi essere in una lobby e avere un team per giocare"}), 400
+
+    lobby = Lobby.query.get(user.lobby_id)
+    if not lobby:
+        # Should not happen if user.lobby_id is set, but good for safety
+        return jsonify({"message": "Lobby non trovata"}), 404
+        
+    if lobby.status != "ACTIVE":
+        return jsonify({"message": "La partita non è ancora attiva"}), 400
+
+    num_team_targets = 0
+    if user.team == "RED":
+        num_team_targets = lobby.targets_red
+    elif user.team == "BLUE":
+        num_team_targets = lobby.targets_blue
+
+    # Calcolo della difficoltà
+    # Più target ha il team, più difficile è il gioco (maggiore sensibilità)
+    BASE_SENSITIVITY = 0.8  # Sensibilità di base
+    SENSITIVITY_PER_TARGET = 0.22  # Aumento per ogni target conquistato
+
+    difficulty_multiplier = BASE_SENSITIVITY + (num_team_targets * SENSITIVITY_PER_TARGET)
+
+    # Aggiungiamo un cap massimo per non renderlo impossibile
+    max_difficulty = 3.0
+    final_difficulty = min(difficulty_multiplier, max_difficulty)
+
+    return jsonify({
+        "difficulty_multiplier": final_difficulty,
+        "team_targets": num_team_targets,
+        "base_sensitivity": BASE_SENSITIVITY,
+        "sensitivity_per_target": SENSITIVITY_PER_TARGET,
+    }), 200
 
 # -------------- LIVE APP -----------------
 
