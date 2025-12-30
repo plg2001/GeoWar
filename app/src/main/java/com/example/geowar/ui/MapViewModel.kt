@@ -192,6 +192,7 @@ class MapViewModel(application: Application) : AndroidViewModel(application) {
             if (userId != -1) {
                 try {
                     ApiClient.authApi.leaveLobby(JoinLobbyRequest(userId, currentLobbyId ?: -1))
+                    currentLobbyId?.let { ApiClient.authApi.deleteLobby(it) }
                 } catch (e: Exception) {
                     e.printStackTrace()
                 }

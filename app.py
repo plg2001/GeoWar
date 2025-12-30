@@ -313,6 +313,16 @@ def create_private_lobby():
     }), 200
 
 
+@app.route("/lobby/<int:lobby_id>", methods=["DELETE"])
+def delete_lobby(lobby_id):
+    lobby = Lobby.query.get(lobby_id)
+    if not lobby:
+        return jsonify({"message": "Lobby non trovata"}), 404
+
+    db.session.delete(lobby)
+    db.session.commit()
+
+    return jsonify({"message": "Lobby eliminata con successo"}), 200
 
 @app.route("/lobby/join_by_code", methods=["POST"])
 def join_lobby_by_code():
