@@ -30,7 +30,7 @@ android {
         // l'opzione "useLegacyPackaging" che mantiene le librerie compresse nell'APK 
         // e le estrae all'installazione, aggirando il problema dell'allineamento mmap diretto.
         
-        // Opzione scelta: useLegacyPackaging = true
+        // Opzione scelta: useLegacyPackaging = false
         // Questo forza l'installazione delle librerie native sul disco invece di caricarle direttamente dall'APK,
         // risolvendo il problema di allineamento per librerie di terze parti non ancora aggiornate.
         // Nota: Aumenta lo spazio occupato su disco dall'app installata.
@@ -39,7 +39,7 @@ android {
 
     packaging {
         jniLibs {
-            useLegacyPackaging = true
+            useLegacyPackaging = false
         }
     }
 
@@ -112,9 +112,9 @@ dependencies {
     implementation("com.google.android.gms:play-services-location:21.0.1")
 
     // CameraX
-    implementation("androidx.camera:camera-core:1.3.4")
-    implementation("androidx.camera:camera-camera2:1.3.4")
-    implementation("androidx.camera:camera-lifecycle:1.3.4")
-    implementation("androidx.camera:camera-view:1.3.4")
-    implementation("androidx.camera:camera-extensions:1.3.4")
+    implementation("androidx.camera:camera-core:1.5.2")
+    implementation("androidx.camera:camera-camera2:1.5.2")
+    implementation("androidx.camera:camera-lifecycle:1.5.2")
+    implementation("androidx.camera:camera-view:1.5.2")
+    implementation("androidx.camera:camera-extensions:1.5.2")
 }
