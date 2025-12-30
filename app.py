@@ -122,6 +122,28 @@ class Stun(db.Model):
 
 
 # ---------------- HELPERS ----------------
+def check_and_finish_match(lobby: Lobby):
+    if lobby.status != "ACTIVE" or not lobby.match_start_time:
+        return False
+
+    elapsed = time.time() - lobby.match_start_time
+    if elapsed < MATCH_DURATION_SECONDS:
+        return False
+
+    # Fine partita
+    lobby.status = "FINISHED"
+
+    if lobby.targets_red > lobby.targets_blue:
+        lobby.winner_team = "RED"
+    elif lobby.targets_blue > lobby.targets_red:
+        lobby.winner_team = "BLUE"
+    else:
+        lobby.winner_team = "DRAW"
+
+    db.session.commit()
+    return True
+
+
 
 def generate_lobby_code(length=6):
     chars = string.ascii_uppercase + string.digits
@@ -697,21 +719,12 @@ def get_lobby_status(lobby_id):
     if not lobby:
         return jsonify({"message": "Lobby non trovata"}), 404
 
+    check_and_finish_match(lobby)
+
     time_left = -1
     if lobby.status == "ACTIVE" and lobby.match_start_time:
         elapsed = time.time() - lobby.match_start_time
         time_left = max(0, MATCH_DURATION_SECONDS - elapsed)
-
-        # Condizione di vittoria #2: tempo scaduto
-        if time_left == 0:
-            lobby.status = "FINISHED"
-            if lobby.targets_red > lobby.targets_blue:
-                lobby.winner_team = "RED"
-            elif lobby.targets_blue > lobby.targets_red:
-                lobby.winner_team = "BLUE"
-            else:
-                lobby.winner_team = "DRAW"
-            db_commit_or_error()
 
     return jsonify({
         "status": lobby.status,
@@ -719,6 +732,23 @@ def get_lobby_status(lobby_id):
         "time_left": time_left,
         "targets_red": lobby.targets_red,
         "targets_blue": lobby.targets_blue
+    }), 200
+
+@app.route("/lobby/<int:lobby_id>/endgame", methods=["GET"])
+def get_endgame(lobby_id):
+    lobby = Lobby.query.get(lobby_id)
+    if not lobby:
+        return jsonify({"message": "Lobby non trovata"}), 404
+
+    if lobby.status != "FINISHED":
+        return jsonify({"message": "La partita non è ancora terminata"}), 400
+
+    return jsonify({
+        "status": lobby.status,
+        "winner_team": lobby.winner_team,
+        "targets_red": lobby.targets_red,
+        "targets_blue": lobby.targets_blue,
+        "ended_at": lobby.match_start_time + MATCH_DURATION_SECONDS
     }), 200
 
 
