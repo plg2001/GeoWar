@@ -47,6 +47,7 @@ import com.google.android.gms.maps.model.CameraPosition
 import com.google.android.gms.maps.model.LatLng
 import com.google.android.gms.maps.model.MapStyleOptions
 import com.google.maps.android.compose.*
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.util.Locale
 import kotlin.math.max
@@ -273,9 +274,10 @@ fun MapScreen(
     var showLogoutDialog by remember { mutableStateOf(false) }
     var showDifficultyDialog by remember { mutableStateOf(false) }
     var isFabMenuExpanded by remember { mutableStateOf(false) }
+    var winnerTeam by remember { mutableStateOf<String?>(null) }
 
     // --- MATCH TIMER (5 MINUTES) ---
-    val matchDurationMs = 5 * 60 * 1000L
+    val matchDurationMs = 30 * 1000L
     var remainingTimeMs by remember { mutableStateOf(matchDurationMs) }
     var timerRunning by remember { mutableStateOf(false) }
 
@@ -331,13 +333,17 @@ fun MapScreen(
             remainingTimeMs = matchDurationMs
 
             while (remainingTimeMs > 0 && timerRunning) {
-                kotlinx.coroutines.delay(1000L)
+                delay(1000L)
                 remainingTimeMs -= 1000L
             }
 
             if (remainingTimeMs <= 0) {
                 timerRunning = false
-                // QUI puoi gestire fine partita se vuoi
+                winnerTeam = when {
+                    targetsRed > targetsBlue -> "RED"
+                    targetsBlue > targetsRed -> "BLUE"
+                    else -> "DRAW"
+                }
             }
         }
     }
@@ -648,7 +654,7 @@ fun MapScreen(
                     CircularProgressIndicator(color = MaterialTheme.colorScheme.primary, strokeWidth = 3.dp)
                     Spacer(modifier = Modifier.height(32.dp))
                     Text(
-                        text = "> WAITING FOR OPPONENTS...",
+                        text = "WAITING FOR OPPONENTS...",
                         color = MaterialTheme.colorScheme.primary,
                         style = MaterialTheme.typography.headlineSmall,
                         fontWeight = FontWeight.Bold,
@@ -955,6 +961,21 @@ fun MapScreen(
                 titleColor = MaterialTheme.colorScheme.error
             )
         }
+
+        // --- GAME OVER SCREEN ---
+        if (winnerTeam != null) {
+            GameOverScreen(
+                winnerTeam = winnerTeam!!,
+                onDismiss = { /* Non-dismissable */ }
+            )
+
+            LaunchedEffect(winnerTeam) {
+                delay(5000L) // Aspetta 5 secondi
+                mapViewModel.leaveLobby()
+                onLogout()
+            }
+        }
+
     }
 }
 
@@ -1056,9 +1077,3 @@ fun CyberpunkDialog(
         }
     }
 }
-
-
-
-
-
-
