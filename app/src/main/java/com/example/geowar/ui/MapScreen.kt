@@ -274,6 +274,12 @@ fun MapScreen(
     var showDifficultyDialog by remember { mutableStateOf(false) }
     var isFabMenuExpanded by remember { mutableStateOf(false) }
 
+    // --- MATCH TIMER (5 MINUTES) ---
+    val matchDurationMs = 5 * 60 * 1000L
+    var remainingTimeMs by remember { mutableStateOf(matchDurationMs) }
+    var timerRunning by remember { mutableStateOf(false) }
+
+
     var showMinigame by remember { mutableStateOf(false) }
     var currentMinigameTargetName by remember { mutableStateOf<String?>(null) }
     var currentMinigameColor by remember { mutableStateOf("RED") }
@@ -317,6 +323,25 @@ fun MapScreen(
             showDifficultyDialog = true
         }
     }
+
+    // --- START MATCH TIMER WHEN GAME BEGINS ---
+    LaunchedEffect(targets.isNotEmpty()) {
+        if (targets.isNotEmpty() && !timerRunning) {
+            timerRunning = true
+            remainingTimeMs = matchDurationMs
+
+            while (remainingTimeMs > 0 && timerRunning) {
+                kotlinx.coroutines.delay(1000L)
+                remainingTimeMs -= 1000L
+            }
+
+            if (remainingTimeMs <= 0) {
+                timerRunning = false
+                // QUI puoi gestire fine partita se vuoi
+            }
+        }
+    }
+
 
     // --- Game cancelled dialog ---
     if (gameCancelled) {
@@ -671,6 +696,24 @@ fun MapScreen(
             }
 
             Spacer(modifier = Modifier.height(16.dp))
+            if (timerRunning) {
+                Card(
+                    colors = CardDefaults.cardColors(containerColor = Color.Black.copy(alpha = 0.8f)),
+                    border = BorderStroke(1.dp, teamColor)
+                ) {
+                    Text(
+                        text = "⏱ ${formatTime(remainingTimeMs)}",
+                        color = if (remainingTimeMs <= 30_000) Color.Red else Color.White,
+                        fontWeight = FontWeight.Bold,
+                        style = MaterialTheme.typography.titleMedium,
+                        modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp)
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(24.dp))
+
+
 
             Row(
                 verticalAlignment = Alignment.CenterVertically,
@@ -915,6 +958,14 @@ fun MapScreen(
     }
 }
 
+private fun formatTime(ms: Long): String {
+    val totalSeconds = ms / 1000
+    val minutes = totalSeconds / 60
+    val seconds = totalSeconds % 60
+    return String.format("%02d:%02d", minutes, seconds)
+}
+
+
 @Composable
 private fun FabAction(icon: ImageVector, label: String, onClick: () -> Unit) {
     Row(
@@ -1005,5 +1056,9 @@ fun CyberpunkDialog(
         }
     }
 }
+
+
+
+
 
 
