@@ -69,10 +69,10 @@ fun getTargetWithBorder(
 ): Bitmap {
 
     // --------------------------
-    // 🎛️ PARAMETRI
+    // 🎛️ PARAMETERS
     // --------------------------
-    val circleSize = 100f      // dimensione cerchio (come sizeDp = 200)
-    val fillFactor = 1f     // quanto la torre riempie il cerchio
+    val circleSize = 100f      // circle size (like sizeDp = 200)
+    val fillFactor = 1f     // how much the tower fills the circle
     val borderWidth = 8f
     val shadowRadius = 18f
 
@@ -86,7 +86,7 @@ fun getTargetWithBorder(
     val canvas = Canvas(output)
 
     // --------------------------
-    // 🖼️ SCALA TORRE (MANTIENE PROPORZIONI)
+    // 🖼️ SCALE TOWER (MAINTAINS PROPORTIONS)
     // --------------------------
     val targetHeight = circleSize * fillFactor
     val aspectRatio = source.width.toFloat() / source.height.toFloat()
@@ -115,7 +115,7 @@ fun getTargetWithBorder(
     canvas.drawCircle(center, center, circleSize / 2f, glowPaint)
 
     // --------------------------
-    // 🔵 BORDO
+    // 🔵 BORDER
     // --------------------------
     val borderPaint = Paint().apply {
         color = teamColor
@@ -126,7 +126,7 @@ fun getTargetWithBorder(
     canvas.drawCircle(center, center, circleSize / 2f, borderPaint)
 
     // --------------------------
-    // 🏰 TORRE
+    // 🏰 TOWER
     // --------------------------
     canvas.drawBitmap(scaledTower, left, top, null)
 
@@ -318,7 +318,7 @@ fun MapScreen(
         permissionLauncher.launch(Manifest.permission.ACCESS_FINE_LOCATION)
     }
 
-    // Mostra il dialog quando la difficoltà viene caricata
+    // Show dialog when difficulty is loaded
     LaunchedEffect(bombDifficulty) {
         if (bombDifficulty != null) {
             showDifficultyDialog = true
@@ -395,14 +395,14 @@ fun MapScreen(
         }
     }
 
-    // --- Camera follow player (leggero) ---
+    // --- Camera follow player (light) ---
     LaunchedEffect(playerPosition) {
         playerPosition?.let {
             if (isFirstCameraMove) {
                 cameraPositionState.move(CameraUpdateFactory.newLatLngZoom(it, 20f))
                 isFirstCameraMove = false
             } else {
-                // Non seguire automaticamente la camera se non è la prima mossa
+                // Don't automatically follow the camera if it's not the first move
                 // cameraPositionState.animate(CameraUpdateFactory.newLatLng(it), 100)
             }
         }
@@ -442,7 +442,7 @@ fun MapScreen(
         }
     }
 
-    // Altri giocatori: cache per username -> (seed, AvatarCache)
+    // Other players: cache for username -> (seed, AvatarCache)
     val otherPlayersCache = remember { mutableStateMapOf<String, Pair<String, AvatarCache>>() }
 
     LaunchedEffect(otherPlayers) {
@@ -451,7 +451,7 @@ fun MapScreen(
             val key = p.username
 
             val existing = otherPlayersCache[key]
-            if (existing != null && existing.first == seed) return@forEach // già ok
+            if (existing != null && existing.first == seed) return@forEach // already ok
 
             val colorInt = if (p.team == "BLUE") 0xFF00E5FF.toInt() else 0xFFFF4081.toInt()
 
@@ -472,13 +472,13 @@ fun MapScreen(
         }
     }
 
-    // Bitmap scelta in base allo zoom: istantaneo (non crea bitmap)
+    // Bitmap choice based on zoom: instant (does not create bitmap)
     val myMarkerBitmap: Bitmap? = remember(myAvatarCache, shouldShowNames) {
         myAvatarCache?.let { if (shouldShowNames) it.withName else it.withoutName }
     }
 
     // --------------------------
-    // Minigame overlay (come tuo)
+    // Minigame overlay
     // --------------------------
     if (showMinigame) {
         val isNeutralTarget = nearbyTarget?.owner == "NEUTRAL"
@@ -522,7 +522,7 @@ fun MapScreen(
         return
     }
 
-    // --- DIALOG CONFERMA DIFFICOLTÀ ---
+    // --- DIFFICULTY CONFIRMATION DIALOG ---
     if (showDifficultyDialog && bombDifficulty != null) {
         CyberpunkDialog(
             title = "INCOMING HACK",
@@ -531,12 +531,12 @@ fun MapScreen(
             dismissText = "ABORT",
             onConfirm = {
                 showDifficultyDialog = false
-                showMinigame = true // Avvia il minigioco
-                mapViewModel.clearBombDifficulty() // Pulisci lo stato
+                showMinigame = true // Start the minigame
+                mapViewModel.clearBombDifficulty() // Clear the state
             },
             onDismiss = {
                 showDifficultyDialog = false
-                mapViewModel.clearBombDifficulty() // Pulisci lo stato
+                mapViewModel.clearBombDifficulty() // Clear the state
             },
             icon = Icons.Default.Sensors
         )
@@ -882,7 +882,7 @@ fun MapScreen(
                                         if (isCooldown) {
                                             Toast.makeText(context, "Access Denied: Security Cooldown Active", Toast.LENGTH_SHORT).show()
                                         } else {
-                                            // Avvia la logica per la difficoltà
+                                            // Start the difficulty logic
                                             mapViewModel.fetchBombDifficulty()
                                         }
                                     }
@@ -934,7 +934,7 @@ fun MapScreen(
             )
 
             LaunchedEffect(winnerTeam) {
-                delay(5000L) // Aspetta 5 secondi
+                delay(5000L) // Wait 5 seconds
                 mapViewModel.leaveLobby()
                 onLogout()
             }

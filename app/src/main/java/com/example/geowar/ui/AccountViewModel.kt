@@ -34,7 +34,7 @@ class AccountViewModel(private val userRepository: UserRepository) : ViewModel()
                 email = userDetails.email
                 avatarSeed = userDetails.avatar_seed
             }.onFailure { error ->
-                errorMessage = error.message ?: "Errore sconosciuto"
+                errorMessage = error.message ?: "Unknown error"
             }
             isLoading = false
         }
@@ -62,7 +62,7 @@ class AccountViewModel(private val userRepository: UserRepository) : ViewModel()
                 userRepository.saveAvatarSeed(avatarSeed)
                 onSuccess()
             }.onFailure { error ->
-                errorMessage = error.message ?: "Impossibile salvare le modifiche"
+                errorMessage = error.message ?: "Failed to save changes"
             }
             isLoading = false
         }

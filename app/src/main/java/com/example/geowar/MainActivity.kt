@@ -122,7 +122,7 @@ class MainActivity : ComponentActivity() {
                             var isLoading by remember { mutableStateOf(false) }
                             var errorMessage by remember { mutableStateOf<String?>(null) }
 
-                            // Funzione helper per gestire il post-login
+                            // Helper function to handle post-login
                             fun handleLoginSuccess(userResponse: UserResponse) {
                                 currentUserId = userResponse.id
                                 sharedPref.edit { 
@@ -133,17 +133,17 @@ class MainActivity : ComponentActivity() {
 
                                 Toast.makeText(
                                     this@MainActivity,
-                                    "Benvenuto ${userResponse.username}",
+                                    "Welcome ${userResponse.username}",
                                     Toast.LENGTH_SHORT
                                 ).show()
 
                                 if (userResponse.admin) {
-                                    // Se è ADMIN, vai alla dashboard
+                                    // If user is an ADMIN, go to the dashboard
                                     navController.navigate("admin_dashboard") {
                                         popUpTo("auth") { inclusive = true }
                                     }
                                 } else {
-                                    // Se è utente normale, vai alla selezione lobby
+                                    // If user is a normal user, go to the lobby selection
                                     navController.navigate("lobby_selection")
                                 }
                             }
@@ -284,7 +284,7 @@ class MainActivity : ComponentActivity() {
                                             }
                                         }
                                     } else {
-                                        Toast.makeText(this@MainActivity, "Errore: Utente non identificato", Toast.LENGTH_SHORT).show()
+                                        Toast.makeText(this@MainActivity, "Error: User not identified", Toast.LENGTH_SHORT).show()
                                         navController.navigate("auth")
                                     }
                                 },
@@ -326,9 +326,9 @@ class MainActivity : ComponentActivity() {
                                 username = username,
                                 team = team,
                                 onLogout = {
-                                    // Rimuovi solo il team, mantieni login
+                                    // Remove only the team, keep login
                                     sharedPref.edit { remove(PREF_TEAM) }
-                                    // Torna alla selezione lobby
+                                    // Return to lobby selection
                                     navController.navigate("lobby_selection") {
                                         popUpTo("landing") { inclusive = true }
                                     }
@@ -345,7 +345,7 @@ class MainActivity : ComponentActivity() {
                         composable("admin_dashboard") {
                             AdminScreen(
                                 onLogout = {
-                                    // Logout semplice: pulisci le preferenze e torna all\'auth
+                                    // Simple logout: clear preferences and return to auth
                                     sharedPref.edit { clear() }
                                     navController.navigate("auth") {
                                         popUpTo("landing") { inclusive = true }
@@ -370,11 +370,11 @@ class MainActivity : ComponentActivity() {
                         composable("minigame") {
                             MinigameScreen(
                                 onWin = {
-                                    Toast.makeText(this@MainActivity, "HAI VINTO!", Toast.LENGTH_SHORT).show()
+                                    Toast.makeText(this@MainActivity, "YOU WON!", Toast.LENGTH_SHORT).show()
                                     navController.popBackStack()
                                 },
                                 onLose = {
-                                    Toast.makeText(this@MainActivity, "HAI PERSO/USCITO!", Toast.LENGTH_SHORT).show()
+                                    Toast.makeText(this@MainActivity, "YOU LOST/EXITED!", Toast.LENGTH_SHORT).show()
                                     navController.popBackStack()
                                 }
                             )
@@ -384,16 +384,16 @@ class MainActivity : ComponentActivity() {
                         // 9. Color Minigame Screen (New)
                         // -------------------------
                         composable("color_minigame") {
-                            // Seleziona un colore casuale tra ROSSO, VERDE, BLU
+                            // Select a random color from RED, GREEN, BLUE
                             val randomColor = remember {
-                                val colors = listOf("ROSSO", "VERDE", "BLU")
+                                val colors = listOf("RED", "GREEN", "BLUE")
                                 colors[Random.nextInt(colors.size)]
                             }
 
                             ColorMinigameScreen(
                                 targetColorName = randomColor, 
                                 onWin = {
-                                    Toast.makeText(this@MainActivity, "COLORE TROVATO!", Toast.LENGTH_SHORT).show()
+                                    Toast.makeText(this@MainActivity, "COLOR FOUND!", Toast.LENGTH_SHORT).show()
                                     navController.popBackStack()
                                 },
                                 onLose = {

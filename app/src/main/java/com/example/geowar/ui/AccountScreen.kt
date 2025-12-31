@@ -123,10 +123,10 @@ fun AccountScreen(
                 .verticalScroll(rememberScrollState()),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            if (isLoading && avatarSeed == null) { // Mostra solo al primo caricamento
+            if (isLoading && avatarSeed == null) { // Show only on first load
                 CircularProgressIndicator(color = neonBlue)
             } else {
-                // --- SEZIONE FOTO PROFILO ---
+                // --- PROFILE PICTURE SECTION ---
                 Box(
                     contentAlignment = Alignment.BottomEnd,
                     modifier = Modifier
@@ -154,7 +154,7 @@ fun AccountScreen(
 
                 Spacer(modifier = Modifier.height(24.dp))
 
-                // --- SEZIONE DATI UTENTE ---
+                // --- USER DATA SECTION ---
                 Text(
                     "EDIT DATA",
                     style = MaterialTheme.typography.titleMedium,
@@ -181,7 +181,7 @@ fun AccountScreen(
 
                 Spacer(modifier = Modifier.height(24.dp))
 
-                // --- SEZIONE AVATAR DICEBAR ---
+                // --- DICEBAR AVATAR SECTION ---
                 Text(
                     "GAME AVATAR",
                     style = MaterialTheme.typography.titleMedium,
@@ -225,7 +225,7 @@ fun AccountScreen(
 
                 Spacer(modifier = Modifier.weight(1f))
 
-                // --- BOTTONE SALVA ---
+                // --- SAVE BUTTON ---
                 Button(
                     onClick = {
                         accountViewModel.saveChanges {
@@ -268,7 +268,7 @@ private fun getCyberTextFieldColors(activeColor: Color, surfaceColor: Color): Te
     )
 }
 
-// Factory per il ViewModel
+// Factory for the ViewModel
 class AccountViewModelFactory(private val userRepository: UserRepository) : androidx.lifecycle.ViewModelProvider.Factory {
     override fun <T : androidx.lifecycle.ViewModel> create(modelClass: Class<T>): T {
         if (modelClass.isAssignableFrom(AccountViewModel::class.java)) {
