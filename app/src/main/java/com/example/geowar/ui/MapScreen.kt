@@ -754,17 +754,7 @@ fun MapScreen(
                 .align(Alignment.BottomStart)
                 .padding(bottom = 120.dp, start = 16.dp)
         ) {
-            if (currentLobbyId != null) {
-                Card(colors = CardDefaults.cardColors(containerColor = Color.Black.copy(alpha = 0.6f))) {
-                    Text(
-                        text = "LOBBY #$currentLobbyId",
-                        color = Color.White,
-                        fontWeight = FontWeight.Bold,
-                        style = MaterialTheme.typography.labelMedium,
-                        modifier = Modifier.padding(8.dp)
-                    )
-                }
-            }
+
         }
 
         // --- NEARBY TARGET CARD ---

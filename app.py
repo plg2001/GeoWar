@@ -207,29 +207,70 @@ def lobby_adjust_target_counters(lobby: Lobby, old_owner: str, new_owner: str):
         lobby.targets_blue += 1
 
 
+
 def generate_lobby_targets(lobby_id: int):
-    """Genera target fissi per una lobby, owner NEUTRAL."""
+    """Genera 20 target fissi in Italia (5 Roma + 15 luoghi famosi)."""
     lobby = Lobby.query.get(lobby_id)
     if not lobby:
         return
 
-    coordinates = [
-        (41.4704, 13.1820),
-        (41.5949700, 12.65961228),
-        (41.5959700, 12.65961228),
-        (41.5969700, 12.65961228),
-        (41.5979700, 12.65961228),
-        (41.5989700, 12.65961228),
-        (41.5999700, 12.65961228),
-        (41.5919700, 12.65961228),
-        (41.5929700, 12.65961228),
-        (41.5939700, 12.65961228),
-        (41.5899700, 12.65961228),
+    targets = []
+
+    # =========================
+    # 1) 5 TARGET A ROMA (DISTANTI)
+    # =========================
+    roma_center_lat = 41.8914323
+    roma_center_lon = 12.5033401
+
+    roma_offsets = [
+        (0.020, 0.000),   # Nord (~2.2 km)
+        (-0.020, 0.000),  # Sud
+        (0.000, 0.030),   # Est
+        (0.000, -0.030),  # Ovest
+        (0.015, 0.020),   # Nord-Est
     ]
 
-    for i, (lat, lon) in enumerate(coordinates, start=1):
+    for i, (dlat, dlon) in enumerate(roma_offsets, start=1):
+        targets.append((
+            f"Obiettivo Roma #{i}",
+            roma_center_lat + dlat,
+            roma_center_lon + dlon
+        ))
+
+    # =========================
+    # 2) 15 LUOGHI ITALIANI FAMOSI (FISSI)
+    # =========================
+    famous_places = [
+        ("Milano", 45.4642, 9.1900),
+        ("Torino", 45.0703, 7.6869),
+        ("Venezia", 45.4408, 12.3155),
+        ("Verona", 45.4384, 10.9916),
+        ("Bologna", 44.4949, 11.3426),
+        ("Firenze", 43.7696, 11.2558),
+        ("Pisa", 43.7228, 10.4017),
+        ("Genova", 44.4056, 8.9463),
+        ("Napoli", 40.8518, 14.2681),
+        ("Pompei", 40.7460, 14.4989),
+        ("Bari", 41.1171, 16.8719),
+        ("Matera", 40.6663, 16.6043),
+        ("Assisi", 43.0707, 12.6196),
+        ("Perugia", 43.1107, 12.3908),
+        ("Trento", 46.0748, 11.1217),
+    ]
+
+    for name, lat, lon in famous_places:
+        targets.append((
+            f"Obiettivo {name}",
+            lat,
+            lon
+        ))
+
+    # =========================
+    # CREAZIONE TARGET DB
+    # =========================
+    for i, (name, lat, lon) in enumerate(targets, start=1):
         target = Target(
-            name=f"Obiettivo Lobby {lobby_id} #{i}",
+            name=f"{name} (Lobby {lobby_id})",
             lat=lat,
             lon=lon,
             owner_team="NEUTRAL",
@@ -237,12 +278,15 @@ def generate_lobby_targets(lobby_id: int):
         )
         db.session.add(target)
 
-    # reset contatori target lobby (tutti neutrali)
+    # reset contatori
     lobby.targets_red = 0
     lobby.targets_blue = 0
 
     err = db_commit_or_error()
     return err
+
+
+
 
 # ---------------- INIT ----------------
 
