@@ -4,8 +4,6 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.geowar.data.auth.ApiClient
 import com.example.geowar.data.auth.BanUserRequest
-import com.example.geowar.data.auth.CreateTargetRequest
-import com.example.geowar.data.auth.TargetResponse
 import com.example.geowar.data.auth.UserResponse
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -17,9 +15,6 @@ class AdminViewModel : ViewModel() {
     private val _users = MutableStateFlow<List<UserResponse>>(emptyList())
     val users: StateFlow<List<UserResponse>> = _users.asStateFlow()
 
-    private val _targets = MutableStateFlow<List<TargetResponse>>(emptyList())
-    val targets: StateFlow<List<TargetResponse>> = _targets.asStateFlow()
-
     private val _isLoading = MutableStateFlow(false)
     val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
 
@@ -30,13 +25,8 @@ class AdminViewModel : ViewModel() {
         viewModelScope.launch {
             _isLoading.value = true
             try {
-                // Carica utenti
                 val userList = ApiClient.authApi.getAllUsers()
                 _users.value = userList
-
-                // Carica target
-                val targetList = ApiClient.authApi.getTargets()
-                _targets.value = targetList
             } catch (e: Exception) {
                 _message.value = "Errore caricamento dati: ${e.message}"
             } finally {
@@ -46,58 +36,25 @@ class AdminViewModel : ViewModel() {
     }
 
     fun banUser(userId: Int) {
+        val originalUsers = _users.value
+        // Aggiornamento ottimistico: rimuove l'utente dalla UI immediatamente
+        _users.value = originalUsers.filterNot { it.id == userId }
+
         viewModelScope.launch {
-            _isLoading.value = true
             try {
                 val response = ApiClient.authApi.banUser(BanUserRequest(userId))
                 if (response.success) {
-                    _message.value = "Utente bannato/rimosso con successo"
-                    loadData() // Ricarica la lista
+                    // Successo: la UI è già corretta, mostra solo il messaggio
+                    _message.value = response.message
                 } else {
-                    _message.value = "Errore: ${response.message}"
+                    // Fallimento: ripristina la lista originale e mostra l'errore
+                    _message.value = "Ban fallito: ${response.message}"
+                    _users.value = originalUsers
                 }
             } catch (e: Exception) {
-                _message.value = "Errore ban: ${e.message}"
-            } finally {
-                _isLoading.value = false
-            }
-        }
-    }
-
-    fun createTarget(name: String, lat: Double, lon: Double) {
-        viewModelScope.launch {
-            _isLoading.value = true
-            try {
-                val response = ApiClient.authApi.createTarget(CreateTargetRequest(name, lat, lon))
-                if (response.success) {
-                    _message.value = "Target creato con successo"
-                    loadData()
-                } else {
-                    _message.value = "Errore creazione: ${response.message}"
-                }
-            } catch (e: Exception) {
-                _message.value = "Errore creazione: ${e.message}"
-            } finally {
-                _isLoading.value = false
-            }
-        }
-    }
-
-    fun deleteTarget(targetId: Int) {
-        viewModelScope.launch {
-            _isLoading.value = true
-            try {
-                val response = ApiClient.authApi.deleteTarget(targetId)
-                if (response.success) {
-                    _message.value = "Target eliminato"
-                    loadData()
-                } else {
-                    _message.value = "Errore eliminazione: ${response.message}"
-                }
-            } catch (e: Exception) {
-                _message.value = "Errore eliminazione: ${e.message}"
-            } finally {
-                _isLoading.value = false
+                // Eccezione: ripristina la lista originale e mostra l'errore
+                _message.value = "Errore di rete durante il ban: ${e.message}"
+                _users.value = originalUsers
             }
         }
     }

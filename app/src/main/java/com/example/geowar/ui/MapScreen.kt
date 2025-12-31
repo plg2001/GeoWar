@@ -276,7 +276,7 @@ fun MapScreen(
     var winnerTeam by remember { mutableStateOf<String?>(null) }
 
     // --- MATCH TIMER (5 MINUTES) ---
-    val matchDurationMs = 30 * 1000L
+    val matchDurationMs = 5 * 60 * 1000L
     var remainingTimeMs by remember { mutableStateOf(matchDurationMs) }
     var timerRunning by remember { mutableStateOf(false) }
 
