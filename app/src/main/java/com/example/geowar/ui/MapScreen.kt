@@ -402,7 +402,8 @@ fun MapScreen(
                 cameraPositionState.move(CameraUpdateFactory.newLatLngZoom(it, 20f))
                 isFirstCameraMove = false
             } else {
-                cameraPositionState.animate(CameraUpdateFactory.newLatLng(it), 100)
+                // Non seguire automaticamente la camera se non è la prima mossa
+                // cameraPositionState.animate(CameraUpdateFactory.newLatLng(it), 100)
             }
         }
     }
@@ -747,14 +748,30 @@ fun MapScreen(
             }
         }
 
-        // --- LOBBY BADGE ---
+        // --- LOBBY BADGE & MY LOCATION BUTTON ---
         Box(
             modifier = Modifier
                 .align(Alignment.BottomStart)
-                .padding(bottom = 120.dp, start = 16.dp)
+                .padding(start = 16.dp, bottom = 48.dp)
         ) {
-
+            FloatingActionButton(
+                onClick = {
+                    playerPosition?.let {
+                        coroutineScope.launch {
+                            cameraPositionState.animate(
+                                CameraUpdateFactory.newLatLngZoom(it, cameraPositionState.position.zoom),
+                                1000
+                            )
+                        }
+                    }
+                },
+                containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                contentColor = MaterialTheme.colorScheme.onSecondaryContainer
+            ) {
+                Icon(Icons.Default.MyLocation, contentDescription = "Center on me")
+            }
         }
+
 
         // --- NEARBY TARGET CARD ---
         AnimatedVisibility(
