@@ -1,4 +1,4 @@
-This is the Repository for the Mobile Computing and Cloud Application's project.
+This is the Repository for the Mobile Application and Cloud Computing's project.
 
 
 Owners:
