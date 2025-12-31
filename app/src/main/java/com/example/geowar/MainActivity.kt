@@ -120,6 +120,7 @@ class MainActivity : ComponentActivity() {
                         // -------------------------
                         composable("auth") {
                             var isLoading by remember { mutableStateOf(false) }
+                            var errorMessage by remember { mutableStateOf<String?>(null) }
 
                             // Funzione helper per gestire il post-login
                             fun handleLoginSuccess(userResponse: UserResponse) {
@@ -155,7 +156,7 @@ class MainActivity : ComponentActivity() {
                                         if (userResponse != null) {
                                             handleLoginSuccess(userResponse)
                                         } else {
-                                            Toast.makeText(this@MainActivity, msg, Toast.LENGTH_LONG).show()
+                                            errorMessage = msg
                                         }
                                     }
                                 },
@@ -166,7 +167,7 @@ class MainActivity : ComponentActivity() {
                                         if (userResponse != null) {
                                             handleLoginSuccess(userResponse)
                                         } else {
-                                            Toast.makeText(this@MainActivity, msg, Toast.LENGTH_LONG).show()
+                                            errorMessage = msg
                                         }
                                     }
                                 },
@@ -178,12 +179,14 @@ class MainActivity : ComponentActivity() {
                                             if (userResponse != null) {
                                                 handleLoginSuccess(userResponse)
                                             } else {
-                                                Toast.makeText(this@MainActivity, msg, Toast.LENGTH_LONG).show()
+                                                errorMessage = msg
                                             }
                                         }
                                     }
                                 },
-                                isLoading = isLoading
+                                isLoading = isLoading,
+                                errorMessage = errorMessage,
+                                onErrorMessageChange = { errorMessage = it }
                             )
                         }
 

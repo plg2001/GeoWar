@@ -3,6 +3,7 @@ import time
 import random
 import math
 import string
+import re
 from flask import Flask, request, jsonify
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
@@ -423,6 +424,12 @@ def register():
 
     if not username or not email or not password:
         return jsonify({"message": "Dati mancanti (username, password, email)"}), 400
+
+    if len(password) < 8:
+        return jsonify({"message": "La password deve essere di almeno 8 caratteri"}), 400
+
+    if not re.match(r"[^@]+@[^@]+\.[^@]+", email):
+        return jsonify({"message": "Formato email non valido"}), 400
 
     if User.query.filter_by(username=username).first():
         return jsonify({"message": "Username già esistente"}), 400

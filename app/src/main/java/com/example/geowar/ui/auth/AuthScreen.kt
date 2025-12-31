@@ -1,5 +1,6 @@
 package com.example.geowar.ui.auth
 
+import android.util.Patterns
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -34,7 +35,9 @@ fun AuthScreen(
     onLoginClick: (String, String) -> Unit,
     onRegisterClick: (String, String, String) -> Unit,
     onGoogleClick: () -> Unit,
-    isLoading: Boolean = false
+    isLoading: Boolean = false,
+    errorMessage: String?,
+    onErrorMessageChange: (String?) -> Unit
 ) {
 
     var isLoginMode by remember { mutableStateOf(true) }
@@ -43,8 +46,6 @@ fun AuthScreen(
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var confirmPassword by remember { mutableStateOf("") }
-
-    var errorMessage by remember { mutableStateOf<String?>(null) }
 
     val darkBg = Color(0xFF0A0E17)
     val neonBlue = Color(0xFF00E5FF)
@@ -95,7 +96,7 @@ fun AuthScreen(
                         .background(if (isLoginMode) activeColor.copy(alpha = 0.2f) else Color.Transparent)
                         .clickable {
                             isLoginMode = true
-                            errorMessage = null
+                            onErrorMessageChange(null)
                         },
                     contentAlignment = Alignment.Center
                 ) {
@@ -107,7 +108,7 @@ fun AuthScreen(
                         .background(if (!isLoginMode) activeColor.copy(alpha = 0.2f) else Color.Transparent)
                         .clickable {
                             isLoginMode = false
-                            errorMessage = null
+                            onErrorMessageChange(null)
                         },
                     contentAlignment = Alignment.Center
                 ) {
@@ -173,7 +174,7 @@ fun AuthScreen(
             // ERROR MESSAGE
             if (errorMessage != null) {
                 Spacer(modifier = Modifier.height(16.dp))
-                Text(text = errorMessage!!, color = Color.Red)
+                Text(text = errorMessage, color = Color.Red)
             }
 
             Spacer(modifier = Modifier.height(48.dp))
@@ -187,18 +188,30 @@ fun AuthScreen(
 
                 Button(
                     onClick = {
-                        errorMessage = null
+                        onErrorMessageChange(null)
                         if (isLoginMode) {
-                            if (username.isNotEmpty() && password.isNotEmpty()) {
-                                onLoginClick(username, password)
-                            } else errorMessage = "Fill all fields"
-                        } else {
-                            if (username.isEmpty() || password.isEmpty() || email.isEmpty() || confirmPassword.isEmpty()) {
-                                errorMessage = "All fields required"
-                            } else if (password != confirmPassword) {
-                                errorMessage = "Passwords do not match"
+                            if (username.isBlank() || password.isBlank()) {
+                                onErrorMessageChange("Username and password are required.")
                             } else {
-                                onRegisterClick(username, password, email)
+                                onLoginClick(username, password)
+                            }
+                        } else {
+                            when {
+                                username.isBlank() || email.isBlank() || password.isBlank() -> {
+                                    onErrorMessageChange("All fields are required.")
+                                }
+                                !Patterns.EMAIL_ADDRESS.matcher(email).matches() -> {
+                                    onErrorMessageChange("Invalid email format.")
+                                }
+                                password.length < 8 -> {
+                                    onErrorMessageChange("Password must be at least 8 characters long.")
+                                }
+                                password != confirmPassword -> {
+                                    onErrorMessageChange("Passwords do not match.")
+                                }
+                                else -> {
+                                    onRegisterClick(username, password, email)
+                                }
                             }
                         }
                     },

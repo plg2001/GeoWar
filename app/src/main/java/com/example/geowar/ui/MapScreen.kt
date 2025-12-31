@@ -273,7 +273,6 @@ fun MapScreen(
     var hasPermission by remember { mutableStateOf(false) }
     var showLogoutDialog by remember { mutableStateOf(false) }
     var showDifficultyDialog by remember { mutableStateOf(false) }
-    var isFabMenuExpanded by remember { mutableStateOf(false) }
     var winnerTeam by remember { mutableStateOf<String?>(null) }
 
     // --- MATCH TIMER (5 MINUTES) ---
@@ -890,48 +889,6 @@ fun MapScreen(
                     .padding(32.dp)
             ) {
                 Joystick(onMove = { dx, dy -> mapViewModel.startMoving(dx, dy) })
-            }
-        }
-
-        // --- FAB MENU ---
-        Box(
-            modifier = Modifier
-                .align(Alignment.BottomStart)
-                .padding(start = 32.dp, bottom = 32.dp)
-        ) {
-            val rotation by animateFloatAsState(if (isFabMenuExpanded) 45f else 0f, label = "fab_rotation")
-
-            Column(
-                horizontalAlignment = Alignment.Start,
-                verticalArrangement = Arrangement.spacedBy(24.dp, Alignment.Bottom)
-            ) {
-                AnimatedVisibility(
-                    visible = isFabMenuExpanded,
-                    enter = fadeIn() + slideInVertically { it / 2 },
-                    exit = fadeOut() + slideOutVertically { it }
-                ) {
-                    Column(verticalArrangement = Arrangement.spacedBy(24.dp)) {
-                        FabAction(icon = Icons.Default.AccountCircle, label = "Account", onClick = onAccountClick)
-                        FabAction(icon = Icons.Default.MyLocation, label = "Center") {
-                            playerPosition?.let {
-                                coroutineScope.launch {
-                                    cameraPositionState.animate(
-                                        CameraUpdateFactory.newLatLngZoom(it, 20f),
-                                        500
-                                    )
-                                }
-                            }
-                        }
-                    }
-                }
-
-                FloatingActionButton(
-                    onClick = { isFabMenuExpanded = !isFabMenuExpanded },
-                    containerColor = MaterialTheme.colorScheme.primary,
-                    contentColor = MaterialTheme.colorScheme.onPrimary
-                ) {
-                    Icon(Icons.Default.Add, "Open actions menu", modifier = Modifier.rotate(rotation))
-                }
             }
         }
 
