@@ -31,13 +31,17 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import com.example.geowar.R
 import kotlinx.coroutines.delay
 
 private enum class MinigameState {
@@ -161,6 +165,8 @@ fun MinigameScreen(
     val context = LocalContext.current
     val sensorManager = remember { context.getSystemService(Context.SENSOR_SERVICE) as SensorManager }
     val accelerometer = remember { sensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER) }
+    val bombPainter = painterResource(id = R.drawable.video_game_bomb)
+
 
     // Game State
     var ballPosition by remember { mutableStateOf(Offset.Zero) } // Relative to center
@@ -177,7 +183,7 @@ fun MinigameScreen(
     // Difficulty Settings
     val sensitivity = 1.5f // Hardcoded sensitivity
     val friction = 0.95f
-    val ballRadius = 20.dp
+    val ballRadius = 30.dp
     val targetRadius = 60.dp
 
     DisposableEffect(Unit) { // sensitivity is now a constant, so we can use Unit
@@ -279,7 +285,7 @@ fun MinigameScreen(
                 fontWeight = FontWeight.Bold
             )
 
-            Text("Keep the ball inside the blue circle", color = Color.White)
+            Text("Keep the bomb inside the blue circle", color = Color.White)
 
             Spacer(modifier = Modifier.height(20.dp))
 
@@ -312,15 +318,15 @@ fun MinigameScreen(
                         style = Stroke(width = 4.dp.toPx())
                     )
 
-                    // Draw Ball
+                    // Draw Bomb
                     val ballCenter = center + ballPosition
-                    val color = if (ballPosition.getDistance() < targetRadiusPx) Color.Green else Color.Red
+                    val ballRadiusPx = ballRadius.toPx()
+                    translate(left = ballCenter.x - ballRadiusPx, top = ballCenter.y - ballRadiusPx) {
+                        with(bombPainter) {
+                            draw(Size(ballRadiusPx * 2, ballRadiusPx * 2))
+                        }
+                    }
 
-                    drawCircle(
-                        color = color,
-                        radius = ballRadius.toPx(),
-                        center = ballCenter
-                    )
 
                     // Draw connecting line if far
                     if (ballPosition.getDistance() > targetRadiusPx) {
@@ -395,7 +401,7 @@ fun MinigameScreen(
                     Spacer(modifier = Modifier.height(16.dp))
 
                     Text(
-                        text = "Great job agent. The zone is now under your team's control.",
+                        text = "Great job agent. The zone is now under your team\'s control.",
                         color = Color.LightGray,
                         style = MaterialTheme.typography.bodyMedium
                     )
@@ -468,6 +474,8 @@ fun MinigameScreen(
                         style = MaterialTheme.typography.bodyMedium,
                         textAlign = TextAlign.Center
                     )
+
+
 
                     Spacer(modifier = Modifier.height(24.dp))
 
