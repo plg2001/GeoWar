@@ -981,48 +981,36 @@ def update_position():
         return jsonify({"message": "JSON non valido"}), 400
 
     user_id = data.get("user_id")
-    lat = float(data.get("lat", 0))
-    lon = float(data.get("lon", 0))
-    # Il client dovrebbe inviare anche il momento esatto in cui ha preso la posizione
-    client_timestamp = data.get("timestamp", time.time())
+    try:
+        lat = float(data.get("lat", 0))
+        lon = float(data.get("lon", 0))
+    except (ValueError, TypeError):
+        return jsonify({"message": "Coordinate non numeriche"}), 400
 
     user = User.query.get(user_id)
     if not user:
         return jsonify({"message": "Utente non trovato"}), 404
 
-    # BUG FIX: Ignora la posizione se è palesemente 0,0 (spawn di errore)
+    # 1. Protezione contro coordinate 0,0 (spesso errori GPS)
     if lat == 0.0 or lon == 0.0:
-        return jsonify({"success": False, "message": "Coordinate non valide"}), 400
+        return jsonify({"success": False, "message": "Coordinate GPS non valide"}), 400
 
-    # BUG FIX: Se il timestamp inviato è più vecchio di quello già presente, ignoralo
-    # Questo evita che pacchetti "ritardatari" o vecchie cache sporchino il DB
-    if client_timestamp < user.last_active:
-        return jsonify({"success": False, "message": "Dato obsoleto ignorato"}), 200
+    # 2. Gestione Timestamp (Usa il tempo del server per la validazione)
+    # Se proprio vuoi usare il timestamp del client per l'ordine,
+    # assicurati che siano entrambi in secondi.
+    current_server_time = time.time()
 
+    # Aggiorniamo sempre la posizione se il pacchetto è valido
     user.lat = lat
     user.lon = lon
-    user.last_active = client_timestamp # Usiamo il timestamp del client
+    user.last_active = current_server_time # <--- Importante: usa il tempo del server qui
 
-    db.session.commit()
-    return jsonify({"success": True}), 200
-
-@app.route("/users_positions", methods=["GET"])
-def users_positions():
-    now = time.time()
-    ACTIVE_SECONDS = 15 # Aumentato leggermente per stabilità
-
-    # BUG FIX: Filtra solo utenti attivi E che hanno una posizione diversa da 0,0
-    users = User.query.filter(
-        User.last_active >= now - ACTIVE_SECONDS,
-        User.banned == False,
-        User.lat != 0.0,
-        User.lon != 0.0
-    ).all()
-
-    return jsonify([
-        {"id": u.id, "username": u.username, "lat": u.lat, "lon": u.lon, "team": u.team, "lobby_id": u.lobby_id}
-        for u in users
-    ]), 200
+    try:
+        db.session.commit()
+        return jsonify({"success": True}), 200
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"success": False, "message": str(e)}), 500
 # ---------- ADMIN ----------
 
 @app.route("/admin/users", methods=["GET"])
