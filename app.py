@@ -103,23 +103,6 @@ class HackLog(db.Model):
     timestamp = db.Column(db.Float, default=time.time, nullable=False)
 
 
-class PvPEncounter(db.Model):
-    __tablename__ = "pvp_encounter"
-
-    id = db.Column(db.Integer, primary_key=True)
-    attacker_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
-    defender_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
-
-    winner_id = db.Column(db.Integer, nullable=True)
-    timestamp = db.Column(db.Float, default=time.time, nullable=False)
-
-
-class Stun(db.Model):
-    __tablename__ = "stun"
-
-    id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
-    until = db.Column(db.Float, nullable=False)  # time.time() + 120
 
 
 # ---------------- HELPERS ----------------
