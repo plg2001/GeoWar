@@ -352,8 +352,8 @@ fun MapScreen(
     if (gameCancelled) {
         CyberpunkDialog(
             title = "TRANSMISSION LOST",
-            message = "Not enough operators to sustain connection. Returning to lobby selection.",
-            confirmText = "ROGER",
+            message = "Not enough user to sustain connection. Returning to lobby selection.",
+            confirmText = "EXIT",
             onConfirm = {
                 mapViewModel.resetGameCancelled()
                 mapViewModel.leaveLobby()
