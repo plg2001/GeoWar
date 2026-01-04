@@ -206,7 +206,7 @@ fun MinigameScreen(
                 onLose(true)
             },
             title = { Text("LOSE", color = NeonPink) },
-            text = { Text("Hai perso il minigioco.") },
+            text = { Text("Hack Failed") },
             confirmButton = {
                 Button(onClick = {
                     showLoseDialog = false

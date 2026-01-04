@@ -114,12 +114,6 @@ fun LandingScreen(
                     letterSpacing = 2.sp
                 )
             )
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            Button(onClick = onMinigameClick) {
-                Text("Minigame")
-            }
         }
     }
 }
