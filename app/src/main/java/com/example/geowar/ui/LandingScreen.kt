@@ -32,7 +32,8 @@ import androidx.compose.ui.unit.sp
 
 @Composable
 fun LandingScreen(
-    onStartClick: () -> Unit
+    onStartClick: () -> Unit,
+    onMinigameClick: () -> Unit
 ) {
     // Animazione pulsing per il testo
     val infiniteTransition = rememberInfiniteTransition(label = "pulse")
@@ -113,6 +114,12 @@ fun LandingScreen(
                     letterSpacing = 2.sp
                 )
             )
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            Button(onClick = onMinigameClick) {
+                Text("Minigame")
+            }
         }
     }
 }
@@ -125,6 +132,7 @@ fun LandingScreen(
 @Composable
 fun LandingScreenPreview() {
     LandingScreen(
-        onStartClick = {}
+        onStartClick = {},
+        onMinigameClick = {}
     )
 }
