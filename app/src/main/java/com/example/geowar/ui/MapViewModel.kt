@@ -75,10 +75,20 @@ class MapViewModel(application: Application) : AndroidViewModel(application) {
     init {
         loadUserDetails()
         loadTargets() // Caricamento iniziale
-        startPollingTargets() // Avvio polling periodico
+    }
+
+    fun startBackgroundJobs() {
+        startPollingTargets()
         startHeartbeat()
         startFetchingPlayers()
         startPollingLobbyInfo()
+    }
+
+    fun stopBackgroundJobs() {
+        heartbeatJob?.cancel()
+        playersFetcherJob?.cancel()
+        targetsPollingJob?.cancel()
+        lobbyInfoJob?.cancel()
     }
 
     private fun loadUserDetails() {
@@ -338,9 +348,6 @@ class MapViewModel(application: Application) : AndroidViewModel(application) {
     override fun onCleared() {
         super.onCleared()
         movementJob?.cancel()
-        heartbeatJob?.cancel()
-        playersFetcherJob?.cancel()
-        targetsPollingJob?.cancel()
-        lobbyInfoJob?.cancel()
+        stopBackgroundJobs()
     }
 }

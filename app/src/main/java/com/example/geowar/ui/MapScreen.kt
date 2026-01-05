@@ -304,14 +304,19 @@ fun MapScreen(
     val markerAlpha by remember { derivedStateOf { if (currentZoom < 13f) 0.5f else 1.0f } }
 
     val lifecycleOwner = LocalLifecycleOwner.current
-    DisposableEffect(lifecycleOwner) {
+    DisposableEffect(lifecycleOwner, mapViewModel) {
         val observer = LifecycleEventObserver { _, event ->
-            if (event == Lifecycle.Event.ON_RESUME) {
-                mapViewModel.reloadAvatar()
+            when (event) {
+                Lifecycle.Event.ON_START -> mapViewModel.startBackgroundJobs()
+                Lifecycle.Event.ON_STOP -> mapViewModel.stopBackgroundJobs()
+                Lifecycle.Event.ON_RESUME -> mapViewModel.reloadAvatar()
+                else -> Unit
             }
         }
         lifecycleOwner.lifecycle.addObserver(observer)
-        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+        }
     }
 
     LaunchedEffect(Unit) {
