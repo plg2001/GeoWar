@@ -260,9 +260,16 @@ fun MapScreen(
     // --- ViewModel state ---
     val playerPosition = mapViewModel.playerPosition
     val avatarSeed by remember { derivedStateOf { mapViewModel.avatarSeed } }
-    val targets by remember { derivedStateOf { mapViewModel.targets } }
-    val targetsRed by remember { derivedStateOf { mapViewModel.targetsRed } }
-    val targetsBlue by remember { derivedStateOf { mapViewModel.targetsBlue } }
+    val targets = mapViewModel.targets
+
+    val targetsRed by remember(targets) {
+        derivedStateOf { targets.count { it.owner == "RED" } }
+    }
+
+    val targetsBlue by remember(targets) {
+        derivedStateOf { targets.count { it.owner == "BLUE" } }
+    }
+
     val nearbyTarget by remember { derivedStateOf { mapViewModel.nearbyTarget } }
     val otherPlayers by remember { derivedStateOf { mapViewModel.otherPlayers } }
     val currentLobbyId by remember { derivedStateOf { mapViewModel.currentLobbyId } }
@@ -279,6 +286,8 @@ fun MapScreen(
     val matchDurationMs = 5 * 60 * 1000L
     var remainingTimeMs by remember { mutableStateOf(matchDurationMs) }
     var timerRunning by remember { mutableStateOf(false) }
+    var matchStarted by remember { mutableStateOf(false) }
+
 
 
     var showMinigame by remember { mutableStateOf(false) }
@@ -331,26 +340,46 @@ fun MapScreen(
     }
 
     // --- START MATCH TIMER WHEN GAME BEGINS ---
-    LaunchedEffect(targets.isNotEmpty()) {
-        if (targets.isNotEmpty() && !timerRunning) {
+    LaunchedEffect(remainingTimeMs) {
+        if (remainingTimeMs <= 0 && timerRunning) {
+            timerRunning = false
+
+            val red = targets.count { it.owner == "RED" }
+            val blue = targets.count { it.owner == "BLUE" }
+
+            winnerTeam = when {
+                red > blue -> "RED"
+                blue > red -> "BLUE"
+                else -> "DRAW"
+            }
+        }
+    }
+
+
+    LaunchedEffect(playerPosition, targets) {
+        if (
+            playerPosition != null &&
+            targets.isNotEmpty() &&
+            !matchStarted &&
+            !gameCancelled
+        ) {
+            matchStarted = true
             timerRunning = true
             remainingTimeMs = matchDurationMs
+        }
+    }
 
+    LaunchedEffect(timerRunning) {
+        if (timerRunning) {
             while (remainingTimeMs > 0 && timerRunning) {
                 delay(1000L)
                 remainingTimeMs -= 1000L
             }
-
-            if (remainingTimeMs <= 0) {
-                timerRunning = false
-                winnerTeam = when {
-                    targetsRed > targetsBlue -> "RED"
-                    targetsBlue > targetsRed -> "BLUE"
-                    else -> "DRAW"
-                }
-            }
         }
     }
+
+
+
 
 
     // --- Game cancelled dialog ---

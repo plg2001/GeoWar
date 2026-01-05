@@ -81,7 +81,6 @@ class MapViewModel(application: Application) : AndroidViewModel(application) {
         startPollingTargets()
         startHeartbeat()
         startFetchingPlayers()
-        startPollingLobbyInfo()
     }
 
     fun stopBackgroundJobs() {
